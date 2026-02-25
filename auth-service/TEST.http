@@ -1,0 +1,16 @@
+### REQUEST REGISTER
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "full_name": "Tuan Muda Jamal",
+  "email": "jamal@example.com",
+  "password": "StrongPass1!",
+  "phone_number": "081234567890",
+  "nik": "3175091501990001",
+  "address": "Jl. Merdeka No. 123, Jakarta",
+  "date_of_birth": "1999-01-15"
+}
+
+###
