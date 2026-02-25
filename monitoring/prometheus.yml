@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  - job_name: "gateway-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["spring-cloud-gateway:8080"]
+
+  - job_name: "auth-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["auth-service:8081"]
+
+  - job_name: "account-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["account-service:8082"]
+
+  - job_name: "transfer-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["transfer-service:8083"]
+
+  - job_name: "notif-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["notif-service:8084"]
+
+  - job_name: "audit-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["audit-service:8085"]
