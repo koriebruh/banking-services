@@ -1,14 +1,11 @@
 package com.koriebruh.authservice.service;
 
+import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.mapper.UserMapper;
-import com.koriebruh.authservice.dto.request.LoginRequest;
-import com.koriebruh.authservice.dto.request.LogoutRequest;
-import com.koriebruh.authservice.dto.request.MfaVerifyRequest;
-import com.koriebruh.authservice.dto.request.RegisterRequest;
+import com.koriebruh.authservice.dto.request.*;
 import com.koriebruh.authservice.dto.response.LoginResponse;
-import com.koriebruh.authservice.dto.response.MfaVerifyResponse;
 import com.koriebruh.authservice.dto.response.RegisterResponse;
-import com.koriebruh.authservice.entity.RefreshToken;
+import com.koriebruh.authservice.dto.response.VerifyEmailOtpResponse;
 import com.koriebruh.authservice.entity.User;
 import com.koriebruh.authservice.entity.UserRole;
 import com.koriebruh.authservice.entity.UserStatus;
@@ -48,6 +45,10 @@ public class AuthService {
     private final JwtUtil jwtUtil;
 
     private final RefreshTokenRepository refreshTokenRepository;
+
+    private final EmailService emailService;
+
+    private final EmailOtpService emailOtpService;
 
     private static final short MAX_FAILED_ATTEMPTS = 5;
 
@@ -91,6 +92,8 @@ public class AuthService {
                             .role(UserRole.CUSTOMER)
                             .status(UserStatus.PENDING_VERIFICATION)
                             .emailVerified(false)
+                            .mfaEnabled(false)
+                            .mfaSecret(null)
                             .build();
                 })
                 .flatMap(userRepository::save)
@@ -103,10 +106,11 @@ public class AuthService {
                 )
 
                 .map(userMapper::toRegisterResponse)
-                /*
-                 * Ensure whole pipeline runs inside reactive transaction.
-                 * Required for consistency if multiple DB operations involved.
-                 */
+                .flatMap(response ->
+                        emailOtpService.generateAndStoreOtp(request.getEmail())
+                                .flatMap(otp -> emailService.sendVerificationOtp(request.getEmail(), otp))
+                                .thenReturn(response)
+                )
                 .as(transactionalOperator::transactional);
     }
 
@@ -167,8 +171,59 @@ public class AuthService {
 
 
     /**
+     * VERIFY EMAIL - Aktivasi akun setelah register.
+     * <p>
+     * Flow:
+     * 1. Cek OTP di Redis — expired/tidak ada = error
+     * 2. Verify OTP valid
+     * 3. Update status user → ACTIVE, emailVerified = true
+     * <p>
+     * Security notes:
+     * - OTP single-use, langsung dihapus dari Redis setelah dicek
+     * - OTP expired otomatis setelah 5 menit (Redis TTL)
+     * - Generic error untuk OTP invalid (tidak expose detail)
+     */
+    public Mono<VerifyEmailOtpResponse> verifyEmailOtp(VerifyEmailOtpRequest request) {
+        return emailOtpService.verifyOtp(request.getEmail(), request.getOtpCode())
+                .flatMap(isValid -> {
+                    if (!isValid) {
+                        log.warn("Email verification failed - invalid or expired OTP. email={}", maskEmail(request.getEmail()));
+                        return Mono.error(new UserExceptions.InvalidOtpException());
+                    }
+                    return userRepository.findByEmail(request.getEmail());
+                })
+                .flatMap(user -> {
+                    if (user.getEmailVerified()) {
+                        log.warn("Email already verified. email={}", maskEmail(request.getEmail()));
+                        return Mono.error(new UserExceptions.EmailAlreadyVerifiedException());
+                    }
+                    return userRepository.verifyUserEmail(user.getId(), Instant.now());
+                })
+                .thenReturn(VerifyEmailOtpResponse.builder()
+                        .success(true)
+                        .message("Email verified successfully. Please proceed to MFA setup.")
+                        .build())
+                .doOnSuccess(v ->
+                        log.info("Email verified successfully. email={}", maskEmail(request.getEmail()))
+                )
+                .as(transactionalOperator::transactional);
+    }
+
+
+    ////api/auth/mfa/setup → scan QR Google Authenticator
+    //    public Mono<> mfaSetup() {
+    //
+    //    }
+
+//POST /api/auth/mfa/setup/verify → konfirmasi OTP TOTP pertama
+//    public  Mono<> mfaVerify() {
+//
+//    }
+
+
+    /**
      * LOGIN - Step 1: Credential Validation & MFA Token Issuance
-     *
+     * <p>
      * Flow:
      * 1. Lookup user by email — generic error if not found (prevent user enumeration)
      * 2. Check account lock status — reject immediately if still within lock period
@@ -176,7 +231,7 @@ public class AuthService {
      * 4. Check user status — only ACTIVE users may proceed
      * 5. Reset failed login counter on success
      * 6. Generate short-lived MFA token — actual JWT issued after MFA verification
-     *
+     * <p>
      * Security notes:
      * - LoginFailException is intentionally generic (email not found = wrong password = same error)
      * - IP address and userAgent are logged for audit trail (banking compliance)
@@ -233,15 +288,15 @@ public class AuthService {
 
     /**
      * Handles failed login attempt by incrementing the failed counter.
-     *
+     * <p>
      * If failed attempts reach MAX_FAILED_ATTEMPTS (5):
      * - Account is locked for LOCK_DURATION_MINUTES (15 minutes)
      * - AccountLockedException is thrown
-     *
+     * <p>
      * Otherwise:
      * - Failed counter is incremented
      * - LoginFailException is thrown (generic, no detail exposed to client)
-     *
+     * <p>
      * Note:
      * - Counter is reset to 0 on successful login (see loginUser above)
      * - Database unique constraints remain the last line of defense against race conditions
@@ -280,8 +335,14 @@ public class AuthService {
     }
 
 
-    // MFA VERIFICATION
+    // MFA VERIFICATION, ini dapet token
 //    public Mono<MfaVerifyResponse> verifyMfa(MfaVerifyRequest request) {
+//        // verif mfa
+//        // generate access token, refresh token
+//        // simpan refresh token ke db (hash)
+//        // return access token, refresh token\
+//
+//        jwtUtil.getMfaTokenExpirationInSeconds()
 //
 //
 //    }
@@ -290,7 +351,6 @@ public class AuthService {
 //    public Mono<LogoutRequest> logoutRequest (LoginRequest request) {
 //
 //    }
-
 
 
 //    // REFRESH TOKEN

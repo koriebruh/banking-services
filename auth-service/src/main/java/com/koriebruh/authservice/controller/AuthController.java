@@ -4,8 +4,10 @@ package com.koriebruh.authservice.controller;
 import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.request.LoginRequest;
 import com.koriebruh.authservice.dto.request.RegisterRequest;
+import com.koriebruh.authservice.dto.request.VerifyEmailOtpRequest;
 import com.koriebruh.authservice.dto.response.LoginResponse;
 import com.koriebruh.authservice.dto.response.RegisterResponse;
+import com.koriebruh.authservice.dto.response.VerifyEmailOtpResponse;
 import com.koriebruh.authservice.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -46,6 +48,25 @@ public class AuthController {
                         ApiResponse.success(
                                 "User registered successfully",
                                 registerResponse,
+                                finalCorrelationId
+                        )
+                );
+    }
+
+    @PostMapping(value = "/verify-email",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<VerifyEmailOtpResponse>> verifyEmailOtp(
+            @RequestBody VerifyEmailOtpRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+        return authService.verifyEmailOtp(request)
+                .map( verifyEmailOtpResponse ->
+                        ApiResponse.success(
+                                "Email OTP verification successful",
+                                verifyEmailOtpResponse,
                                 finalCorrelationId
                         )
                 );

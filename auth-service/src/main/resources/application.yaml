@@ -4,6 +4,19 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
 
+  mail:
+    host: localhost
+    port: 1025
+#    USAGE FOR PRODUCTION (e.g., Gmail SMTP):
+#    username: your_email@gmail.com
+#    password: your_app_password
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/auth_db
     username: auth_user

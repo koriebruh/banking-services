@@ -18,6 +18,18 @@ public class UserExceptions extends RuntimeException {
         }
     }
 
+    public static class InvalidOtpException extends UserExceptions {
+        public InvalidOtpException() {
+            super("Invalid or expired OTP code");
+        }
+    }
+
+    public static class EmailAlreadyVerifiedException extends UserExceptions {
+        public EmailAlreadyVerifiedException() {
+            super("Email is already verified");
+        }
+    }
+
     public static class UnactivatedException extends UserExceptions {
         public UnactivatedException() {
             super("Account is not activated tell an Teller to activate your account");

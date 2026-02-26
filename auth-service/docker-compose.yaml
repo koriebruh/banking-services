@@ -11,7 +11,7 @@ services:
     networks:
       - banking-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      test: [ "CMD-SHELL", "pg_isready -U auth_user -d auth_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,10 +25,16 @@ services:
       - banking-network
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI untuk lihat email
 
 volumes:
   postgres_data:

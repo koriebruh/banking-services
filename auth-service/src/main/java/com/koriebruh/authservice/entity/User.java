@@ -57,6 +57,14 @@ public class User {
     @Column("email_verified")
     private Boolean emailVerified;
 
+    //
+    @Column("mfa_enabled")
+    private Boolean mfaEnabled;
+
+    @Column("mfa_secret")
+    private String mfaSecret;
+    //
+
     @Column("failed_login")
     private Short failedLogin;
 

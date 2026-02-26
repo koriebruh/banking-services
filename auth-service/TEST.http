@@ -4,13 +4,23 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "full_name": "Tuan Muda Jamal",
-  "email": "jamal3@example.com",
-  "password": "StrongPass1!",
-  "phone_number": "081234567893",
-  "nik": "3175091501990003",
-  "address": "Jl. Merdeka No. 123, Jakarta",
-  "date_of_birth": "1999-01-15"
+  "full_name": "Maya Kartika Sari",
+  "email": "maya.kartika.sari@example.com",
+  "password": "ValidPass4$",
+  "phone_number": "085612345670",
+  "nik": "3275012302940006",
+  "address": "Jl. Diponegoro No. 21, Yogyakarta",
+  "date_of_birth": "1994-02-23"
+}
+
+### VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
+POST http://localhost:8080/api/v1/auth/verify-email
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "maya.kartika.sari@example.com",
+  "otp_code": "505696"
 }
 
 ### LOGIN REQUEST
