@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Repository
@@ -19,7 +19,7 @@ public interface RefreshTokenRepository extends ReactiveCrudRepository<RefreshTo
 
     @Query("SELECT * FROM refresh_tokens WHERE token_hash = :tokenHash AND revoked = false AND expires_at > :now")
     Mono<RefreshToken> findValidTokenByHash(@Param("tokenHash") String tokenHash,
-                                            @Param("now") ZonedDateTime now);
+                                            @Param("now") Instant now);
 
     // Relasi User tidak bisa langsung di R2DBC, query by userId aja
     @Query("SELECT * FROM refresh_tokens WHERE user_id = :userId")
@@ -27,29 +27,29 @@ public interface RefreshTokenRepository extends ReactiveCrudRepository<RefreshTo
 
     @Query("SELECT * FROM refresh_tokens WHERE user_id = :userId AND revoked = false AND expires_at > :now")
     Flux<RefreshToken> findValidTokensByUserId(@Param("userId") UUID userId,
-                                               @Param("now") ZonedDateTime now);
+                                               @Param("now") Instant now);
 
     @Modifying
     @Query("UPDATE refresh_tokens SET revoked = true, revoked_at = :revokedAt WHERE token_hash = :tokenHash")
     Mono<Void> revokeToken(@Param("tokenHash") String tokenHash,
-                           @Param("revokedAt") ZonedDateTime revokedAt);
+                           @Param("revokedAt") Instant revokedAt);
 
     @Modifying
     @Query("UPDATE refresh_tokens SET revoked = true, revoked_at = :revokedAt WHERE user_id = :userId AND revoked = false")
     Mono<Void> revokeAllUserTokens(@Param("userId") UUID userId,
-                                   @Param("revokedAt") ZonedDateTime revokedAt);
+                                   @Param("revokedAt") Instant revokedAt);
 
     @Modifying
     @Query("DELETE FROM refresh_tokens WHERE expires_at < :now")
-    Mono<Void> deleteExpiredTokens(@Param("now") ZonedDateTime now);
+    Mono<Void> deleteExpiredTokens(@Param("now") Instant now);
 
     @Modifying
     @Query("DELETE FROM refresh_tokens WHERE revoked = true AND revoked_at < :threshold")
-    Mono<Void> deleteRevokedTokensOlderThan(@Param("threshold") ZonedDateTime threshold);
+    Mono<Void> deleteRevokedTokensOlderThan(@Param("threshold") Instant threshold);
 
     @Query("SELECT COUNT(*) FROM refresh_tokens WHERE user_id = :userId AND revoked = false AND expires_at > :now")
     Mono<Long> countValidTokensByUserId(@Param("userId") UUID userId,
-                                        @Param("now") ZonedDateTime now);
+                                        @Param("now") Instant now);
 
     Mono<Boolean> existsByTokenHashAndRevokedFalse(String tokenHash);
 }
