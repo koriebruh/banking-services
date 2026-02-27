@@ -12,11 +12,10 @@ import org.springframework.data.annotation.Id;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("users")
@@ -84,5 +83,6 @@ public class User {
 
     @Column("deleted_at")
     private Instant deletedAt;
+
 }
 

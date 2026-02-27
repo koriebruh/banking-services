@@ -4,6 +4,7 @@ import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.mapper.UserMapper;
 import com.koriebruh.authservice.dto.request.*;
 import com.koriebruh.authservice.dto.response.LoginResponse;
+import com.koriebruh.authservice.dto.response.MfaSetupResponse;
 import com.koriebruh.authservice.dto.response.RegisterResponse;
 import com.koriebruh.authservice.dto.response.VerifyEmailOtpResponse;
 import com.koriebruh.authservice.entity.User;
@@ -13,6 +14,7 @@ import com.koriebruh.authservice.exception.UserExceptions;
 import com.koriebruh.authservice.repository.RefreshTokenRepository;
 import com.koriebruh.authservice.repository.UserRepository;
 import com.koriebruh.authservice.util.JwtUtil;
+import dev.samstevens.totp.exceptions.QrGenerationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +30,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -49,6 +52,8 @@ public class AuthService {
     private final EmailService emailService;
 
     private final EmailOtpService emailOtpService;
+
+    private final OtpService otpService;
 
     private static final short MAX_FAILED_ATTEMPTS = 5;
 
@@ -290,22 +295,6 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
-
-    /**
-     * Handles failed login attempt by incrementing the failed counter.
-     * <p>
-     * If failed attempts reach MAX_FAILED_ATTEMPTS (5):
-     * - Account is locked for LOCK_DURATION_MINUTES (15 minutes)
-     * - AccountLockedException is thrown
-     * <p>
-     * Otherwise:
-     * - Failed counter is incremented
-     * - LoginFailException is thrown (generic, no detail exposed to client)
-     * <p>
-     * Note:
-     * - Counter is reset to 0 on successful login (see loginUser above)
-     * - Database unique constraints remain the last line of defense against race conditions
-     */
     private Mono<LoginResponse> handleFailedLogin(User user) {
         short newFailedCount = (short) (user.getFailedLogin() + 1);
         Instant now = Instant.now();
@@ -339,10 +328,71 @@ public class AuthService {
         }
     }
 
-    ////api/auth/mfa/setup → scan QR Google Authenticator
-    //    public Mono<> mfaSetup() {
-    //
-    //    }
+    /**
+     * MFA SETUP - Generate secret dan QR code untuk user.
+     * <p>
+     * Flow:
+     * 1. Fetch user dari DB by userId (dari SecurityContext)
+     * 2. Pastikan email sudah verified sebelum setup MFA
+     * 3. Pastikan MFA belum di-setup sebelumnya
+     * 4. Generate TOTP secret
+     * 5. Simpan secret ke DB (mfa_enabled masih false)
+     * 6. Generate QR code base64 di server — secret tidak keluar ke pihak ketiga
+     * 7. Return QR code + secret (secret untuk backup manual entry)
+     * <p>
+     * Security notes:
+     * - QR code di-generate di server sendiri, bukan pakai API eksternal
+     * - Secret tidak pernah dikirim ke pihak ketiga
+     * - mfa_enabled = false sampai user konfirmasi OTP pertama via /mfa/setup/verify
+     * - Secret sebaiknya diencrypt di DB untuk production (AES-256)
+     */
+    public Mono<MfaSetupResponse> setupMfa(String userId) {
+        return userRepository.findById(UUID.fromString(userId))
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
+
+                    // PASTIKAN EMAIL SUDAH VERIFIED
+                    if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                        log.warn("MFA setup failed - email not verified. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.EmailNotVerifiedException());
+                    }
+
+                    // PASTIKAN MFA BELUM DI-SETUP
+                    if (Boolean.TRUE.equals(user.getMfaEnabled())) {
+                        log.warn("MFA setup failed - MFA already enabled. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.MfaAlreadyEnabledException());
+                    }
+
+                    // GENERATE SECRET
+                    String secret = otpService.generateSecret();
+
+                    // SIMPAN SECRET KE DB — mfa_enabled masih false sampai verify pertama
+                    return userRepository.save(
+                            user.toBuilder()
+                                    .mfaSecret(secret)
+                                    .mfaEnabled(false)
+                                    .build()
+                    ).flatMap((User savedUser) -> {  // ← tambah explicit type (User savedUser)
+                        try {
+                            String qrCode = otpService.generateQrCodeBase64(savedUser.getEmail(), secret);
+                            log.debug("MFA setup QR generated. userCode={}", savedUser.getUserCode());
+
+                            return Mono.just(MfaSetupResponse.builder()
+                                    .qrCode(qrCode)
+                                    .secret(secret)
+                                    .build());
+
+                        } catch (QrGenerationException e) {
+                            log.error("Failed to generate QR code. userCode={}", savedUser.getUserCode());
+                            return Mono.error(new RuntimeException("Failed to generate QR code"));
+                        }
+                    });
+                })
+                .doOnSuccess(response ->
+                        log.info("MFA setup initiated successfully. userId={}", userId)
+                )
+                .as(transactionalOperator::transactional);
+    }
 
 //POST /api/auth/mfa/setup/verify → konfirmasi OTP TOTP pertama
 //    public  Mono<> mfaVerify() {

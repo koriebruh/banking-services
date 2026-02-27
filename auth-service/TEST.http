@@ -1,7 +1,8 @@
-### REQUEST REGISTER
+### 1. EQUEST REGISTER
 POST http://localhost:8080/api/v1/auth/register
 Content-Type: application/json
 Accept: application/json
+X-Correlation-ID: test-004
 
 {
   "full_name": "Maya Kartika Sari",
@@ -13,22 +14,30 @@ Accept: application/json
   "date_of_birth": "1994-02-23"
 }
 
-### VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
+### 2. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
 POST http://localhost:8080/api/v1/auth/verify-email
 Content-Type: application/json
 Accept: application/json
+X-Correlation-ID: test-004
 
 {
   "email": "maya.kartika.sari@example.com",
   "otp_code": "505696"
 }
 
-### LOGIN REQUEST
+### 4. LOGIN REQUEST
 POST http://localhost:8080/api/v1/auth/login
 Content-Type: application/json
 Accept: application/json
+X-Correlation-ID: test-004
 
 {
   "email": "maya.kartika.sari@example.com",
   "password": "ValidPass4$"
 }
+
+### 5. MFA SETUP (gunakan mfaToken dari response login)
+POST http://localhost:8080/api/v1/auth/mfa/setup
+Content-Type: application/json
+X-Correlation-ID: test-004
+Authorization: Bearer

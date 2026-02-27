@@ -1,5 +1,7 @@
 package com.koriebruh.authservice.exception;
+
 import com.koriebruh.authservice.dto.ApiResponse;
+import com.koriebruh.authservice.dto.ApiResponseFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,8 @@ import java.util.UUID;
 @RestControllerAdvice
 public class GlobalExceptions {
 
+    private ApiResponseFactory apiResponseFactory;
+
 
     /**
      * Handle all UserExceptions (business errors)
@@ -25,7 +29,7 @@ public class GlobalExceptions {
         log.warn("Business exception occurred: {}", ex.getMessage());
 
         return Mono.just(
-                ApiResponse.error(
+                apiResponseFactory.error(
                         ex.getMessage(),
                         generateCorrelationId()
                 )
@@ -44,7 +48,7 @@ public class GlobalExceptions {
         log.error("Database constraint violation", ex);
 
         return Mono.just(
-                ApiResponse.error(
+                apiResponseFactory.error(
                         "Duplicate data detected",
                         generateCorrelationId()
                 )
@@ -61,7 +65,7 @@ public class GlobalExceptions {
         log.error("Unexpected system error", ex);
 
         return Mono.just(
-                ApiResponse.error(
+                apiResponseFactory.error(
                         "Internal server error",
                         generateCorrelationId()
                 )

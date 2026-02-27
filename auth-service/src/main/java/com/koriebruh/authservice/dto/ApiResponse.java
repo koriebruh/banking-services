@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
 import java.time.ZonedDateTime;
 import java.util.Map;
@@ -45,48 +47,6 @@ public class ApiResponse<T> {
         private String service;
 
         private String version;
-    }
-
-    // Static factory methods for convenience
-    public static <T> ApiResponse<T> success(String message, T data, String correlationId) {
-        return ApiResponse.<T>builder()
-                .success(true)
-                .message(message)
-                .data(data)
-                .meta(Meta.builder()
-                        .timestamp(ZonedDateTime.now())
-                        .correlationId(correlationId)
-                        .service("auth-service")
-                        .version("v1")
-                        .build())
-                .build();
-    }
-
-    public static <T> ApiResponse<T> error(String message, Map<String, String> errors, String correlationId) {
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .errors(errors)
-                .meta(Meta.builder()
-                        .timestamp(ZonedDateTime.now())
-                        .correlationId(correlationId)
-                        .service("auth-service")
-                        .version("v1")
-                        .build())
-                .build();
-    }
-
-    public static <T> ApiResponse<T> error(String message, String correlationId) {
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .meta(Meta.builder()
-                        .timestamp(ZonedDateTime.now())
-                        .correlationId(correlationId)
-                        .service("auth-service")
-                        .version("v1")
-                        .build())
-                .build();
     }
 }
 

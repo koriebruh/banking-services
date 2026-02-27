@@ -2,6 +2,7 @@ package com.koriebruh.authservice.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -9,24 +10,28 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.web.reactive.config.EnableWebFlux;
 
 import java.util.List;
 
 @Configuration
+@EnableWebFlux
 public class SecurityConfig {
 
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
+                                                         JwtAuthenticationFilter jwtAuthenticationFilter) {
 
         return http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for API usage
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/api/v1/auth/**").permitAll() // Allow register/login
+                        .pathMatchers("/api/v1/auth/register").permitAll()
+                        .pathMatchers("/api/v1/auth/login").permitAll()
+                        .pathMatchers("/api/v1/auth/verify-email").permitAll()
                         .anyExchange().authenticated()
                 )
-
-                // DIABLE BCS USAGE JWT
+                .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .build();

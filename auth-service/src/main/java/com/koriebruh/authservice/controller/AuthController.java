@@ -2,21 +2,26 @@ package com.koriebruh.authservice.controller;
 
 
 import com.koriebruh.authservice.dto.ApiResponse;
+import com.koriebruh.authservice.dto.ApiResponseFactory;
 import com.koriebruh.authservice.dto.request.LoginRequest;
 import com.koriebruh.authservice.dto.request.RegisterRequest;
 import com.koriebruh.authservice.dto.request.VerifyEmailOtpRequest;
 import com.koriebruh.authservice.dto.response.LoginResponse;
+import com.koriebruh.authservice.dto.response.MfaSetupResponse;
 import com.koriebruh.authservice.dto.response.RegisterResponse;
 import com.koriebruh.authservice.dto.response.VerifyEmailOtpResponse;
 import com.koriebruh.authservice.service.AuthService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -24,6 +29,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private ApiResponseFactory apiResponseFactory;
 
 
     public static String getOrGenerateCorrelationId(String correlationId) {
@@ -57,7 +65,7 @@ public class AuthController {
 
                 // Transform service result into standardized API response
                 .map(registerResponse ->
-                        ApiResponse.success(
+                        apiResponseFactory.success(
                                 "User registered successfully",
                                 registerResponse,
                                 finalCorrelationId
@@ -75,8 +83,8 @@ public class AuthController {
     ) {
         String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
         return authService.verifyEmailOtp(request)
-                .map( verifyEmailOtpResponse ->
-                        ApiResponse.success(
+                .map(verifyEmailOtpResponse ->
+                        apiResponseFactory.success(
                                 "Email OTP verification successful",
                                 verifyEmailOtpResponse,
                                 finalCorrelationId
@@ -104,9 +112,29 @@ public class AuthController {
 
         return authService.loginUser(request, ipAddress, userAgent)
                 .map(loginResponse ->
-                        ApiResponse.success(
+                        apiResponseFactory.success(
                                 "Login successful",
                                 loginResponse,
+                                finalCorrelationId
+                        )
+                );
+    }
+
+    @PostMapping(value = "/mfa/setup",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<MfaSetupResponse>> setupMfa(
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
+                .flatMap(userId -> authService.setupMfa(userId))
+                .map(setupResponse ->
+                        apiResponseFactory.success(
+                                "MFA setup initiated. Please scan the QR code with Google Authenticator.",
+                                setupResponse,
                                 finalCorrelationId
                         )
                 );

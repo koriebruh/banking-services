@@ -46,4 +46,7 @@ app:
     access-token-expiration: 900000     # 15 minutes (15 * 60 * 1000)
     refresh-token-expiration: 604800000 # 7 days (7 * 24 * 60 * 60 * 1000)
 
+  issuer: auth-service
+  version: v1
+
 
