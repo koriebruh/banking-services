@@ -30,6 +30,18 @@ public class UserExceptions extends RuntimeException {
         }
     }
 
+    public static class EmailNotVerifiedException extends UserExceptions {
+        public EmailNotVerifiedException() {
+            super("Email must be verified before setting up MFA");
+        }
+    }
+
+    public static class MfaAlreadyEnabledException extends UserExceptions {
+        public MfaAlreadyEnabledException() {
+            super("MFA is already enabled for this account");
+        }
+    }
+
     public static class UnactivatedException extends UserExceptions {
         public UnactivatedException() {
             super("Account is not activated tell an Teller to activate your account");

@@ -209,18 +209,6 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
-
-    ////api/auth/mfa/setup → scan QR Google Authenticator
-    //    public Mono<> mfaSetup() {
-    //
-    //    }
-
-//POST /api/auth/mfa/setup/verify → konfirmasi OTP TOTP pertama
-//    public  Mono<> mfaVerify() {
-//
-//    }
-
-
     /**
      * LOGIN - Step 1: Credential Validation & MFA Token Issuance
      * <p>
@@ -266,17 +254,34 @@ public class AuthService {
                     // RESET FAILED LOGIN COUNTER ON SUCCESS
                     return userRepository.updateFailedLoginAttempts(user.getId(), (short) 0, Instant.now())
                             .then(Mono.fromCallable(() -> {
-                                String mfaToken = jwtUtil.generateMfaToken(user);
-                                return LoginResponse.builder()
-                                        .mfaRequired(true)
-                                        .mfaToken(mfaToken)
-                                        .expiresIn(jwtUtil.getMfaTokenExpirationInSeconds())
-                                        .build();
+                                if (user.getMfaEnabled()) {
+
+                                    String mfaToken = jwtUtil.generateMfaToken(user);
+
+                                    return LoginResponse.builder()
+                                            .mfaRequired(true)
+                                            .mfaToken(mfaToken)
+                                            .expiresIn(jwtUtil.getMfaTokenExpirationInSeconds())
+                                            .build();
+                                } else {
+
+                                    String accessToken = jwtUtil.generateAccessToken(user);
+                                    String refreshToken = jwtUtil.generateRefreshToken(user);
+
+                                    return LoginResponse.builder()
+                                            .mfaRequired(false)
+                                            .accessToken(accessToken)
+                                            .refreshToken(refreshToken)
+                                            .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
+                                            .build();
+                                }
                             }));
                 })
                 .doOnSuccess(response ->
-                        log.info("Login step 1 success - MFA token issued. email={}, ip={}, userAgent={}",
-                                maskEmail(request.getEmail()), ipAddress, userAgent)
+                        log.info("Login success. MFA required={}, email={}, ip={}",
+                                response.getMfaRequired(),
+                                maskEmail(request.getEmail()),
+                                ipAddress)
                 )
                 .doOnError(error ->
                         log.warn("Login failed. email={}, ip={}, reason={}",
@@ -334,6 +339,16 @@ public class AuthService {
         }
     }
 
+    ////api/auth/mfa/setup → scan QR Google Authenticator
+    //    public Mono<> mfaSetup() {
+    //
+    //    }
+
+//POST /api/auth/mfa/setup/verify → konfirmasi OTP TOTP pertama
+//    public  Mono<> mfaVerify() {
+//
+//    }
+
 
     // MFA VERIFICATION, ini dapet token
 //    public Mono<MfaVerifyResponse> verifyMfa(MfaVerifyRequest request) {
@@ -347,7 +362,7 @@ public class AuthService {
 //
 //    }
 
-    // LOGOUT
+//    // LOGOUT
 //    public Mono<LogoutRequest> logoutRequest (LoginRequest request) {
 //
 //    }

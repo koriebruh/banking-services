@@ -29,6 +29,6 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "email": "jamal3@example.com",
-  "password": "StrongPass1!"
+  "email": "maya.kartika.sari@example.com",
+  "password": "ValidPass4$"
 }
