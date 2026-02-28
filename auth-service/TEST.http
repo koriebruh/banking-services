@@ -1,8 +1,14 @@
+
+#INTIALIZATION
+@host = http://localhost:8080
+@correlationId = test-004
+
+
 ### 1. EQUEST REGISTER
-POST http://localhost:8080/api/v1/auth/register
+POST {{host}}/api/v1/auth/register
 Content-Type: application/json
 Accept: application/json
-X-Correlation-ID: test-004
+X-Correlation-ID: {{correlationId}}
 
 {
   "full_name": "Maya Kartika Sari",
@@ -15,10 +21,10 @@ X-Correlation-ID: test-004
 }
 
 ### 2. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
-POST http://localhost:8080/api/v1/auth/verify-email
+POST {{host}}/api/v1/auth/verify-email
 Content-Type: application/json
 Accept: application/json
-X-Correlation-ID: test-004
+X-Correlation-ID: {{correlationId}}
 
 {
   "email": "maya.kartika.sari@example.com",
@@ -26,10 +32,10 @@ X-Correlation-ID: test-004
 }
 
 ### 4. LOGIN REQUEST
-POST http://localhost:8080/api/v1/auth/login
+POST {{host}}/api/v1/auth/login
 Content-Type: application/json
 Accept: application/json
-X-Correlation-ID: test-004
+X-Correlation-ID: {{correlationId}}
 
 {
   "email": "maya.kartika.sari@example.com",
@@ -38,20 +44,37 @@ X-Correlation-ID: test-004
 
 ### 5. MFA SETUP
 # MASUKAN ACCESS TOKEN DARI RESPONSE LOGIN SEBELUMNYA
-POST http://localhost:8080/api/v1/auth/mfa/setup
+@accessToken =
+POST {{host}}/api/v1/auth/mfa/setup
 Content-Type: application/json
-X-Correlation-ID: test-004
-Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDIyNy0wMDAwNSIsInN1YiI6ImMxMmM0MDk1LTk4ZWEtNDBkMS04YzJhLWQxYmQyODZjZjJkZiIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIyNzgxYWM0Yy1lNzg5LTQ2M2MtYWZhZi04MDJiZTVlMDYwYjIiLCJpYXQiOjE3NzIyOTE0NzgsImV4cCI6MTc3MjI5MjM3OH0.fw2_BveeOIqYbyy7LLwvsnpAQ9S2F6PQGNzkxuEKxpCZXOyhAHjFx1eCy2kIvhHsYsp2QHF4195TYe26rRodKA
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
 
 ### 6. ENABLE MFA SETUP,
 # 1. SCAN QR CODE DARI RESPONSE SEBELUMNYA MENGGUNAKAN APLIKASI AUTHENTICATOR (GOOGLE AUTHENTICATOR, MICROSOFT AUTHENTICATOR, DLL)
 # 2. DAPATKAN OTP CODE DARI APLIKASI AUTHENTIC
-# 3. KIRIM OTP CODE, DI BAWAH INI
-POST http://localhost:8080/api/v1/auth/mfa/setup/verify
+# 3. KIRIM OTP CODE,
+POST {{host}}/api/v1/auth/mfa/setup/verify
 Content-Type: application/json
-X-Correlation-ID: test-004
-Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDIyNy0wMDAwNSIsInN1YiI6ImMxMmM0MDk1LTk4ZWEtNDBkMS04YzJhLWQxYmQyODZjZjJkZiIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIyNzgxYWM0Yy1lNzg5LTQ2M2MtYWZhZi04MDJiZTVlMDYwYjIiLCJpYXQiOjE3NzIyOTE0NzgsImV4cCI6MTc3MjI5MjM3OH0.fw2_BveeOIqYbyy7LLwvsnpAQ9S2F6PQGNzkxuEKxpCZXOyhAHjFx1eCy2kIvhHsYsp2QHF4195TYe26rRodKA
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
 
 {
     "otp_code" : "601325"
+}
+
+
+### 7.  MFA VALIDATE — tukar mfaToken → accessToken + refreshToken
+# 1. DAPATKAN MFA TOKEN DARI RESPONSE LOGIN SEBELUMNYA
+# 2  OTP COODE DI DAPAT DARI APLIKASI AUTHENTICATOR
+@mfaToken = eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoibWZhIiwic3ViIjoiYzEyYzQwOTUtOThlYS00MGQxLThjMmEtZDFiZDI4NmNmMmRmIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImF1dGgtc2VydmljZSJdLCJqdGkiOiIxZWRkYzU1OC0wNjA4LTRmZDItODExZi1iNGU1MjY3ZjQ0MzkiLCJpYXQiOjE3NzIyOTQwNTgsImV4cCI6MTc3MjI5NDM1OH0.ewlqudUVnexgw9JyApLd4z4HiPdAZlJvk53eQHAhnooPKr6zJEr_vH5opjRvUNgyGgZTGLwFWIcD-CIFTFRnHg
+POST {{host}}/api/v1/auth/mfa/validate
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{mfaToken}}
+
+{
+  "otp_code": "821670"
 }

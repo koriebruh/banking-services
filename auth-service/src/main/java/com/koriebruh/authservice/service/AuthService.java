@@ -4,6 +4,7 @@ import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.mapper.UserMapper;
 import com.koriebruh.authservice.dto.request.*;
 import com.koriebruh.authservice.dto.response.*;
+import com.koriebruh.authservice.entity.RefreshToken;
 import com.koriebruh.authservice.entity.User;
 import com.koriebruh.authservice.entity.UserRole;
 import com.koriebruh.authservice.entity.UserStatus;
@@ -392,21 +393,6 @@ public class AuthService {
     }
 
 
-    /**
-     * MFA SETUP VERIFY - Konfirmasi OTP pertama setelah scan QR.
-     *
-     * Flow:
-     * 1. Fetch user dari DB by userId (dari SecurityContext)
-     * 2. Pastikan mfa_secret sudah ada (setup sudah dilakukan)
-     * 3. Pastikan mfa_enabled masih false (belum pernah verify)
-     * 4. Verify OTP terhadap secret
-     * 5. Set mfa_enabled = true
-     * 6. Return success response
-     *
-     * Security notes:
-     * - Endpoint ini butuh accessToken di header
-     * - Setelah ini semua login akan membutuhkan OTP dari Google Authenticator
-     */
     public Mono<MfaSetupVerifyResponse> verifyMfaSetup(String userId, MfaSetupVerifyRequest request) {
         return userRepository.findById(UUID.fromString(userId))
                 .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
@@ -447,6 +433,89 @@ public class AuthService {
                 })
                 .as(transactionalOperator::transactional);
     }
+
+    /**
+     * MFA VALIDATE - Tukar mfaToken + OTP → accessToken + refreshToken.
+     *
+     * Flow:
+     * 1. Extract userId dari mfaToken (sudah divalidasi JwtAuthenticationFilter)
+     * 2. Fetch user dari DB
+     * 3. Pastikan MFA sudah enabled
+     * 4. Verify OTP terhadap secret user
+     * 5. Generate accessToken + refreshToken
+     * 6. Hash refreshToken, simpan ke DB dengan IP + userAgent
+     * 7. Update last_login_at
+     * 8. Return accessToken + refreshToken
+     *
+     * Security notes:
+     * - mfaToken sudah divalidasi di JwtAuthenticationFilter sebelum masuk sini
+     * - refreshToken di-hash SHA-256 sebelum disimpan ke DB
+     * - OTP gagal = generic error, tidak expose detail ke client
+     * - IP dan userAgent disimpan untuk audit trail (banking compliance)
+     */
+    public Mono<MfaValidateResponse> validateMfa(String userId, MfaValidateRequest request,
+                                                 String ipAddress, String userAgent) {
+        return userRepository.findById(UUID.fromString(userId))
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
+
+                    // PASTIKAN MFA SUDAH ENABLED
+                    if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
+                        log.warn("MFA validate failed - MFA not enabled. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.MfaNotSetupException());
+                    }
+
+                    // PASTIKAN SECRET ADA
+                    if (user.getMfaSecret() == null) {
+                        log.warn("MFA validate failed - no secret found. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.MfaNotSetupException());
+                    }
+
+                    // VERIFY OTP
+                    boolean isValid = otpService.verifyOtp(user.getMfaSecret(), request.getOtpCode());
+                    if (!isValid) {
+                        log.warn("MFA validate failed - invalid OTP. userCode={}, ip={}", user.getUserCode(), ipAddress);
+                        return Mono.error(new UserExceptions.InvalidOtpException());
+                    }
+
+                    // GENERATE TOKENS
+                    String accessToken = jwtUtil.generateAccessToken(user);
+                    String refreshToken = jwtUtil.generateRefreshToken(user);
+                    String refreshTokenHash = hashToken(refreshToken);
+
+                    // BUILD REFRESH TOKEN ENTITY
+                    RefreshToken refreshTokenEntity = RefreshToken.builder()
+                            .userId(user.getId())
+                            .tokenHash(refreshTokenHash)
+                            .expiresAt(Instant.now().plusSeconds(jwtUtil.getRefreshTokenExpirationInSeconds()))
+                            .revoked(false)
+                            .ipAddress(ipAddress)
+                            .userAgent(userAgent)
+                            .build();
+
+                    // SIMPAN REFRESH TOKEN + UPDATE LAST LOGIN
+                    return refreshTokenRepository.save(refreshTokenEntity)
+                            .then(userRepository.updateSuccessfulLogin(user.getId(), Instant.now()))
+                            .thenReturn(MfaValidateResponse.builder()
+                                    .accessToken(accessToken)
+                                    .refreshToken(refreshToken)
+                                    .tokenType("Bearer")
+                                    .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
+                                    .userCode(user.getUserCode())
+                                    .role(user.getRole().name())
+                                    .build());
+                })
+                .doOnSuccess(response ->
+                        log.info("MFA validated successfully - tokens issued. userCode={}, ip={}, userAgent={}",
+                                response.getUserCode(), ipAddress, userAgent)
+                )
+                .doOnError(error ->
+                        log.warn("MFA validate failed. userId={}, ip={}, reason={}",
+                                userId, ipAddress, error.getMessage())
+                )
+                .as(transactionalOperator::transactional);
+    }
+
 
 //    // LOGOUT
 //    public Mono<LogoutRequest> logoutRequest (LoginRequest request) {

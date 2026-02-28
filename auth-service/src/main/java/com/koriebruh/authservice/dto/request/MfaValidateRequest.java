@@ -1,6 +1,6 @@
 package com.koriebruh.authservice.dto.request;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -12,14 +12,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MfaVerifyRequest {
-
-    @NotBlank(message = "Mfa_token is required")
-    @Email(message = "Invalid mfa_token format")
-    private String mfaToken;
+public class MfaValidateRequest {
 
     @NotBlank(message = "OTP code is required")
     @Pattern(regexp = "^[0-9]{6}$", message = "OTP code must be exactly 6 digits")
+    @JsonProperty("otp_code")
     private String otpCode;
-
 }

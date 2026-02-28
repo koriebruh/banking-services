@@ -91,12 +91,19 @@ public class JwtAuthenticationFilter implements WebFilter {
      * - semua lainnya      → accessToken (type = null)
      */
     private boolean isTokenTypeAllowed(String path, String tokenType) {
-        if (path.contains("/mfa/verify")) {
+        // mfa/validate → hanya mfaToken
+        if (path.contains("/mfa/validate")) {
             return "mfa".equals(tokenType);
         }
+        // mfa/setup/** → accessToken
+        if (path.contains("/mfa/setup")) {
+            return tokenType == null;
+        }
+        // refresh → refreshToken
         if (path.contains("/auth/refresh")) {
             return "refresh".equals(tokenType);
         }
+        // semua lainnya → accessToken
         return tokenType == null;
     }
 

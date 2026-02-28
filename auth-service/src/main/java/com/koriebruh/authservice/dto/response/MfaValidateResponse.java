@@ -6,13 +6,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MfaVerifyResponse {
+public class MfaValidateResponse {
 
     @JsonProperty("access_token")
     private String accessToken;
@@ -21,25 +19,14 @@ public class MfaVerifyResponse {
     private String refreshToken;
 
     @JsonProperty("token_type")
-    @Builder.Default
-    private String tokenType = "Bearer";
+    private String tokenType;
 
     @JsonProperty("expires_in")
     private Long expiresIn;
 
-    @JsonProperty("refresh_expires_in")
-    private Long refreshExpiresIn;
+    @JsonProperty("user_code")
+    private String userCode;
 
-    private MfaVerifyResponse.UserInfo user;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UserInfo {
-        @JsonProperty("user_id")
-        private UUID userId;
-
-        private String role;
-    }
+    @JsonProperty("role")
+    private String role;
 }

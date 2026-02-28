@@ -3,10 +3,7 @@ package com.koriebruh.authservice.controller;
 
 import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.ApiResponseFactory;
-import com.koriebruh.authservice.dto.request.LoginRequest;
-import com.koriebruh.authservice.dto.request.MfaSetupVerifyRequest;
-import com.koriebruh.authservice.dto.request.RegisterRequest;
-import com.koriebruh.authservice.dto.request.VerifyEmailOtpRequest;
+import com.koriebruh.authservice.dto.request.*;
 import com.koriebruh.authservice.dto.response.*;
 import com.koriebruh.authservice.service.AuthService;
 import jakarta.validation.Valid;
@@ -163,6 +160,34 @@ public class AuthController {
     }
 
 
+    @PostMapping(value = "/mfa/validate",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<MfaValidateResponse>> validateMfa(
+            @RequestBody @Valid MfaValidateRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId,
+            ServerHttpRequest httpRequest
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        String ipAddress = httpRequest.getRemoteAddress() != null
+                ? httpRequest.getRemoteAddress().getAddress().getHostAddress()
+                : "UNKNOWN";
+
+        String userAgent = httpRequest.getHeaders().getFirst("User-Agent");
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
+                .flatMap(userId -> authService.validateMfa(userId, request, ipAddress, userAgent))
+                .map(response ->
+                        apiResponseFactory.success(
+                                "MFA validated successfully.",
+                                response,
+                                finalCorrelationId
+                        )
+                );
+    }
 
 
 }
