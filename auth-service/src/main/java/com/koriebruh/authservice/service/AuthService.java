@@ -3,10 +3,7 @@ package com.koriebruh.authservice.service;
 import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.mapper.UserMapper;
 import com.koriebruh.authservice.dto.request.*;
-import com.koriebruh.authservice.dto.response.LoginResponse;
-import com.koriebruh.authservice.dto.response.MfaSetupResponse;
-import com.koriebruh.authservice.dto.response.RegisterResponse;
-import com.koriebruh.authservice.dto.response.VerifyEmailOtpResponse;
+import com.koriebruh.authservice.dto.response.*;
 import com.koriebruh.authservice.entity.User;
 import com.koriebruh.authservice.entity.UserRole;
 import com.koriebruh.authservice.entity.UserStatus;
@@ -394,23 +391,62 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
-//POST /api/auth/mfa/setup/verify → konfirmasi OTP TOTP pertama
-//    public  Mono<> mfaVerify() {
-//
-//    }
 
+    /**
+     * MFA SETUP VERIFY - Konfirmasi OTP pertama setelah scan QR.
+     *
+     * Flow:
+     * 1. Fetch user dari DB by userId (dari SecurityContext)
+     * 2. Pastikan mfa_secret sudah ada (setup sudah dilakukan)
+     * 3. Pastikan mfa_enabled masih false (belum pernah verify)
+     * 4. Verify OTP terhadap secret
+     * 5. Set mfa_enabled = true
+     * 6. Return success response
+     *
+     * Security notes:
+     * - Endpoint ini butuh accessToken di header
+     * - Setelah ini semua login akan membutuhkan OTP dari Google Authenticator
+     */
+    public Mono<MfaSetupVerifyResponse> verifyMfaSetup(String userId, MfaSetupVerifyRequest request) {
+        return userRepository.findById(UUID.fromString(userId))
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
 
-    // MFA VERIFICATION, ini dapet token
-//    public Mono<MfaVerifyResponse> verifyMfa(MfaVerifyRequest request) {
-//        // verif mfa
-//        // generate access token, refresh token
-//        // simpan refresh token ke db (hash)
-//        // return access token, refresh token\
-//
-//        jwtUtil.getMfaTokenExpirationInSeconds()
-//
-//
-//    }
+                    // PASTIKAN SETUP SUDAH DILAKUKAN
+                    if (user.getMfaSecret() == null) {
+                        log.warn("MFA setup verify failed - no secret found. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.MfaNotSetupException());
+                    }
+
+                    // PASTIKAN BELUM PERNAH VERIFY
+                    if (Boolean.TRUE.equals(user.getMfaEnabled())) {
+                        log.warn("MFA setup verify failed - MFA already enabled. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.MfaAlreadyEnabledException());
+                    }
+
+                    // VERIFY OTP
+                    boolean isValid = otpService.verifyOtp(user.getMfaSecret(), request.getOtpCode());
+                    if (!isValid) {
+                        log.warn("MFA setup verify failed - invalid OTP. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.InvalidOtpException());
+                    }
+
+                    // AKTIFKAN MFA
+                    return userRepository.save(
+                            user.toBuilder()
+                                    .mfaEnabled(true)
+                                    .build()
+                    );
+                })
+                .map(updatedUser -> {
+                    log.info("MFA enabled successfully. userCode={}", updatedUser.getUserCode());
+                    return MfaSetupVerifyResponse.builder()
+                            .mfaEnabled(true)
+                            .message("MFA has been enabled. You will need Google Authenticator for future logins.")
+                            .build();
+                })
+                .as(transactionalOperator::transactional);
+    }
 
 //    // LOGOUT
 //    public Mono<LogoutRequest> logoutRequest (LoginRequest request) {
@@ -420,6 +456,11 @@ public class AuthService {
 
 //    // REFRESH TOKEN
 //    public Mono<> refreshToken(){}
+
+
+//    // CHANGE PASSWORD
+
+    // MFA VEIFY GET TOKEN
 
 
 }

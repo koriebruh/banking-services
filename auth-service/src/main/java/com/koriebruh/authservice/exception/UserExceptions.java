@@ -42,6 +42,12 @@ public class UserExceptions extends RuntimeException {
         }
     }
 
+    public static class MfaNotSetupException extends UserExceptions {
+        public MfaNotSetupException() {
+            super("MFA has not been set up. Please call /mfa/setup first.");
+        }
+    }
+
     public static class UnactivatedException extends UserExceptions {
         public UnactivatedException() {
             super("Account is not activated tell an Teller to activate your account");
