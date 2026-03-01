@@ -36,6 +36,12 @@ public class UserExceptions extends RuntimeException {
         }
     }
 
+    public static class InvalidRefreshTokenException extends UserExceptions {
+        public InvalidRefreshTokenException() {
+            super("Invalid or expired refresh token");
+        }
+    }
+
     public static class MfaAlreadyEnabledException extends UserExceptions {
         public MfaAlreadyEnabledException() {
             super("MFA is already enabled for this account");

@@ -20,6 +20,7 @@ X-Correlation-ID: {{correlationId}}
   "date_of_birth": "1994-02-23"
 }
 
+
 ### 2. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
 POST {{host}}/api/v1/auth/verify-email
 Content-Type: application/json
@@ -28,8 +29,9 @@ X-Correlation-ID: {{correlationId}}
 
 {
   "email": "maya.kartika.sari@example.com",
-  "otp_code": "505696"
+  "otp_code": "256927"
 }
+
 
 ### 4. LOGIN REQUEST
 POST {{host}}/api/v1/auth/login
@@ -42,13 +44,15 @@ X-Correlation-ID: {{correlationId}}
   "password": "ValidPass4$"
 }
 
+
 ### 5. MFA SETUP
 # MASUKAN ACCESS TOKEN DARI RESPONSE LOGIN SEBELUMNYA
-@accessToken =
+@accessToken = eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMwMS0wMDAwMiIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIzZWM3M2I1Ny03ZTdiLTQ4MjAtYjUyNy0xNTc5MmJhMmNhOTUiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3MjM0NTU2MH0.5c3mwJNO5dbfUvfdwMb_sformY4GhZZovCj2bWTxg-UME0WV_71_9FW1geF4tkWDn8IM2uoIC-jPXc1ug-43-A
 POST {{host}}/api/v1/auth/mfa/setup
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
+
 
 ### 6. ENABLE MFA SETUP,
 # 1. SCAN QR CODE DARI RESPONSE SEBELUMNYA MENGGUNAKAN APLIKASI AUTHENTICATOR (GOOGLE AUTHENTICATOR, MICROSOFT AUTHENTICATOR, DLL)
@@ -61,14 +65,14 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
 
 {
-    "otp_code" : "601325"
+    "otp_code" : "950064"
 }
 
 
 ### 7.  MFA VALIDATE — tukar mfaToken → accessToken + refreshToken
 # 1. DAPATKAN MFA TOKEN DARI RESPONSE LOGIN SEBELUMNYA
 # 2  OTP COODE DI DAPAT DARI APLIKASI AUTHENTICATOR
-@mfaToken = eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoibWZhIiwic3ViIjoiYzEyYzQwOTUtOThlYS00MGQxLThjMmEtZDFiZDI4NmNmMmRmIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImF1dGgtc2VydmljZSJdLCJqdGkiOiIxZWRkYzU1OC0wNjA4LTRmZDItODExZi1iNGU1MjY3ZjQ0MzkiLCJpYXQiOjE3NzIyOTQwNTgsImV4cCI6MTc3MjI5NDM1OH0.ewlqudUVnexgw9JyApLd4z4HiPdAZlJvk53eQHAhnooPKr6zJEr_vH5opjRvUNgyGgZTGLwFWIcD-CIFTFRnHg
+@mfaToken = eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoibWZhIiwic3ViIjoiODgzMjE4NDQtYWMyNy00MDcwLWFlNGUtMjE1OTJjZDUxMzM0IiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImF1dGgtc2VydmljZSJdLCJqdGkiOiJkMWI1NDMzZS0wODViLTRhODEtYTljMS1jNWJmNTUyY2Q0MDciLCJpYXQiOjE3NzIzNDQ2MjAsImV4cCI6MTc3MjM0NDkyMH0.NagTDA2qxqZyvRhtJSXGERmGyRW2ZmK6pr9PHP-y0uAr6xCLtXm8fctrdnVjYOKFtKR9oq4xtXAy-WXm04vMog
 POST {{host}}/api/v1/auth/mfa/validate
 Content-Type: application/json
 Accept: application/json
@@ -76,5 +80,26 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{mfaToken}}
 
 {
-  "otp_code": "821670"
+  "otp_code": "361736"
 }
+
+
+### 9. REFRESH TOKEN — TO GET NEW ACCESS TOKEN
+@refresh_token = eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMwMS0wMDAwMiIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIzZWM3M2I1Ny03ZTdiLTQ4MjAtYjUyNy0xNTc5MmJhMmNhOTUiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3MjM0NTU2MH0.5c3mwJNO5dbfUvfdwMb_sformY4GhZZovCj2bWTxg-UME0WV_71_9FW1geF4tkWDn8IM2uoIC-jPXc1ug-43-A
+POST http://localhost:8080/api/v1/auth/refresh
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{refresh_token}}
+Accept: application/json
+
+
+### 8. LOGOUT, INVALIDATE REFRESH TOKEN
+POST {{host}}/api/v1/auth/logout
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "refresh_token" :"eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoicmVmcmVzaCIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjZjc0N2ViYS04OWM2LTQ1NzAtODc2Yi1iMmJiM2RiOTAxNjQiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3Mjk0OTQ2MH0.8wvwt2miZL427lUS2_Roch0FuNicCYmd4Cl1_f3r925IkydeiOXQ5IhUgSwQRhdySxTGue9OzENrR8tFSirPVg"
+}
+

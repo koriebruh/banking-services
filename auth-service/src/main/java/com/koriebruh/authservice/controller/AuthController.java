@@ -9,10 +9,12 @@ import com.koriebruh.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -183,6 +185,49 @@ public class AuthController {
                 .map(response ->
                         apiResponseFactory.success(
                                 "MFA validated successfully.",
+                                response,
+                                finalCorrelationId
+                        )
+                );
+    }
+
+    @PostMapping(value = "/logout",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<Void>> logout(
+            @RequestBody @Valid LogoutRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
+                .flatMap(userId -> authService.logout(userId, request))
+                .thenReturn(apiResponseFactory.success(
+                        "Logged out successfully.",
+                        null,
+                        finalCorrelationId
+                ));
+    }
+
+    @PostMapping(value = "/refresh",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<RefreshTokenResponse>> refreshToken(
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId,
+            @RequestHeader(name = "Authorization") String authorizationHeader // ← ambil dari header
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        String rawRefreshToken = authorizationHeader.substring(7);
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
+                .flatMap(userId -> authService.refreshToken(userId, rawRefreshToken))
+                .map(response ->
+                        apiResponseFactory.success(
+                                "Token refreshed successfully.",
                                 response,
                                 finalCorrelationId
                         )

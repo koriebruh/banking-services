@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -88,6 +89,22 @@ public class GlobalExceptions {
         return Mono.just(
                 apiResponseFactory.error(
                         "Internal server error",
+                        generateCorrelationId()
+                )
+        );
+    }
+
+    /**
+     * Handle invalid JSON body — malformed JSON, missing quotes, dll
+     * Contoh: kirim refresh_token tanpa quotes, JSON tidak valid
+     */
+    @ExceptionHandler(ServerWebInputException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Mono<ApiResponse<Void>> handleServerWebInputException(ServerWebInputException ex) {
+        log.warn("Invalid request body: {}", ex.getMessage());
+        return Mono.just(
+                apiResponseFactory.error(
+                        "Invalid request body. Please check your JSON format.",
                         generateCorrelationId()
                 )
         );

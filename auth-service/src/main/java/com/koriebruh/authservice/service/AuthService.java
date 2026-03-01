@@ -517,15 +517,94 @@ public class AuthService {
     }
 
 
-//    // LOGOUT
-//    public Mono<LogoutRequest> logoutRequest (LoginRequest request) {
-//
-//    }
+    /**
+     * LOGOUT - Revoke refresh token.
+     *
+     * Flow:
+     * 1. Hash refresh token yang dikirim client
+     * 2. Cari token di DB by hash
+     * 3. Pastikan token valid (tidak expired, tidak revoked)
+     * 4. Revoke token
+     *
+     * Security notes:
+     * - Plain refresh token tidak disimpan di DB, hanya hash-nya
+     * - Token yang sudah revoked tidak bisa dipakai lagi
+     * - Endpoint ini butuh accessToken di header
+     */
+    public Mono<Void> logout(String userId, LogoutRequest request) {
+        String tokenHash = hashToken(request.getRefreshToken());
 
+        return refreshTokenRepository.findValidTokenByHash(tokenHash, Instant.now())
+                .switchIfEmpty(Mono.error(new UserExceptions.InvalidRefreshTokenException()))
+                .flatMap(refreshToken -> {
 
-//    // REFRESH TOKEN
-//    public Mono<> refreshToken(){}
+                    // PASTIKAN TOKEN MILIK USER YANG SEDANG LOGIN
+                    if (!refreshToken.getUserId().toString().equals(userId)) {
+                        log.warn("Logout failed - token does not belong to user. userId={}", userId);
+                        return Mono.error(new UserExceptions.InvalidRefreshTokenException());
+                    }
 
+                    return refreshTokenRepository.revokeToken(tokenHash, Instant.now());
+                })
+                .doOnSuccess(v -> log.info("Logout successful. userId={}", userId))
+                .doOnError(e -> log.warn("Logout failed. userId={}, reason={}", userId, e.getMessage()))
+                .as(transactionalOperator::transactional);
+    }
+
+    /**
+     * REFRESH TOKEN - Tukar refresh token → access token baru.
+     *
+     * Flow:
+     * 1. refreshToken sudah divalidasi JwtAuthenticationFilter (signature, expiry, type = "refresh")
+     * 2. userId sudah diinject ke SecurityContext oleh filter
+     * 3. Hash token, cari di DB — pastikan tidak direvoke
+     * 4. Fetch user, pastikan masih ACTIVE
+     * 5. Generate access token baru
+     *
+     * Security notes:
+     * - Token diambil dari header Authorization, bukan body
+     * - Filter sudah handle validasi JWT, service hanya cek revoke status di DB
+     * - Tidak generate refresh token baru (token rotation bisa ditambah nanti)
+     */
+    public Mono<RefreshTokenResponse> refreshToken(String userId, String rawRefreshToken) {
+        String tokenHash = hashToken(rawRefreshToken);
+
+        return refreshTokenRepository.findValidTokenByHash(tokenHash, Instant.now())
+                .switchIfEmpty(Mono.error(new UserExceptions.InvalidRefreshTokenException()))
+                .flatMap(refreshToken -> {
+
+                    // PASTIKAN TOKEN MILIK USER YANG SEDANG LOGIN
+                    if (!refreshToken.getUserId().toString().equals(userId)) {
+                        log.warn("Refresh failed - token does not belong to user. userId={}", userId);
+                        return Mono.error(new UserExceptions.InvalidRefreshTokenException());
+                    }
+
+                    return userRepository.findById(refreshToken.getUserId());
+                })
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
+
+                    // PASTIKAN USER MASIH ACTIVE
+                    if (user.getStatus() != UserStatus.ACTIVE) {
+                        log.warn("Refresh failed - user not active. userCode={}, status={}",
+                                user.getUserCode(), user.getStatus());
+                        return Mono.error(new UserExceptions.LoginFailException());
+                    }
+
+                    String newAccessToken = jwtUtil.generateAccessToken(user);
+                    log.info("Token refreshed successfully. userCode={}", user.getUserCode());
+
+                    return Mono.just(RefreshTokenResponse.builder()
+                            .accessToken(newAccessToken)
+                            .tokenType("Bearer")
+                            .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
+                            .build());
+                })
+                .doOnError(error ->
+                        log.warn("Token refresh failed. userId={}, reason={}", userId, error.getMessage())
+                )
+                .as(transactionalOperator::transactional);
+    }
 
 //    // CHANGE PASSWORD
 
