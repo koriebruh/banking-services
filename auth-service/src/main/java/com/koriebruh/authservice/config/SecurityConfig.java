@@ -27,8 +27,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/api/v1/auth/register").permitAll()
-                        .pathMatchers("/api/v1/auth/login").permitAll()
                         .pathMatchers("/api/v1/auth/verify-email").permitAll()
+                        .pathMatchers("/api/v1/auth/resend-verification").permitAll()
+                        .pathMatchers("/api/v1/auth/login").permitAll()
                         .pathMatchers("/api/v1/auth/refresh").permitAll()
                         .pathMatchers("/api/v1/auth/forgot-password").permitAll()
                         .pathMatchers("/api/v1/auth/reset-password").permitAll()

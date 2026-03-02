@@ -11,27 +11,47 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "full_name": "Maya Kartika Sari",
-  "email": "maya.kartika.sari@example.com",
-  "password": "ValidPass4$",
-  "phone_number": "085612345670",
-  "nik": "3275012302940006",
-  "address": "Jl. Diponegoro No. 21, Yogyakarta",
-  "date_of_birth": "1994-02-23"
+  "full_name": "Anindita Cahya Lestari",
+  "email": "anindita.lestari@example.com",
+  "password": "StrongPwd7@",
+  "phone_number": "082112345678",
+  "nik": "3578021203910009",
+  "address": "Jl. Ahmad Yani No. 10, Surabaya",
+  "date_of_birth": "1991-03-12"
 }
 
+###
+//{
+//  "full_name": "Maya Kartika Sari",
+//  "email": "maya.kartika.sari@example.com",
+//  "password": "ValidPass4$",
+//  "phone_number": "085612345670",
+//  "nik": "3275012302940006",
+//  "address": "Jl. Diponegoro No. 21, Yogyakarta",
+//  "date_of_birth": "1994-02-23"
+//}
 
-### 2. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
+
+### 2. RESEND OTP CODE, FOR ACTIVATION ACCOUNT
+POST {{host}}/api/v1/auth/resend-verification
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+
+{
+  "email": "anindita.lestari@example.com"
+}
+
+### 3. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
 POST {{host}}/api/v1/auth/verify-email
 Content-Type: application/json
 Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "email": "maya.kartika.sari@example.com",
-  "otp_code": "256927"
+"email": "anindita.lestari@example.com",
+"otp_code": "721471"
 }
-
 
 ### 4. LOGIN REQUEST
 POST {{host}}/api/v1/auth/login

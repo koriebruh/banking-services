@@ -212,6 +212,52 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
+
+    /**
+     * RESEND VERIFICATION - Kirim ulang OTP verify email.
+     *
+     * Flow:
+     * 1. Cari user by email
+     * 2. Pastikan user belum verified
+     * 3. Pastikan status masih PENDING_VERIFICATION
+     * 4. Generate OTP baru (otomatis overwrite yang lama di Redis)
+     * 5. Kirim OTP ke email
+     *
+     * Security notes:
+     * - Response SELALU success meskipun email tidak ditemukan
+     *   (prevent user enumeration)
+     * - OTP lama otomatis ter-overwrite di Redis karena pakai key yang sama
+     * - Endpoint ini public — tidak butuh token
+     */
+    public Mono<Void> resendVerification(ResendVerificationRequest request) {
+        return userRepository.findByEmail(request.getEmail())
+                .flatMap(user -> {
+
+                    // SUDAH VERIFIED — tidak perlu kirim ulang
+                    if (Boolean.TRUE.equals(user.getEmailVerified())) {
+                        log.warn("Resend verification skipped - already verified. email={}", maskEmail(request.getEmail()));
+                        return Mono.empty();
+                    }
+
+                    // STATUS BUKAN PENDING — akun mungkin suspended/deleted
+                    if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
+                        log.warn("Resend verification skipped - invalid status. email={}, status={}",
+                                maskEmail(request.getEmail()), user.getStatus());
+                        return Mono.empty();
+                    }
+
+                    // GENERATE OTP BARU + KIRIM EMAIL
+                    return emailOtpService.generateAndStoreOtp(request.getEmail())
+                            .flatMap(otp -> emailService.sendVerificationOtp(request.getEmail(), otp))
+                            .doOnSuccess(v -> log.info("Verification OTP resent. email={}", maskEmail(request.getEmail())));
+                })
+                // SELALU return success — jangan expose apakah email terdaftar atau tidak
+                .then()
+                .doOnError(e -> log.error("Failed to resend verification OTP. email={}, reason={}",
+                        maskEmail(request.getEmail()), e.getMessage()))
+                .onErrorComplete();
+    }
+
     /**
      * LOGIN - Step 1: Credential Validation & MFA Token Issuance
      * <p>

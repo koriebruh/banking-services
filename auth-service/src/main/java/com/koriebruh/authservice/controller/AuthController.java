@@ -36,18 +36,6 @@ public class AuthController {
         return correlationId != null ? correlationId : UUID.randomUUID().toString();
     }
 
-    /*
-    FLOW NYA YANG BENAR
-
-    POST /register
-    POST /verify-email
-    POST /login
-    → kalau mfaEnabled = false → return accessToken
-    → kalau mfaEnabled = true → return mfaToken
-    POST /mfa/setup (optional, setelah login)
-    POST /mfa/setup/verify
-    POST /mfa/verify (saat login jika mfaEnabled)
-    */
 
     @PostMapping(value = "/register",
             produces = MediaType.APPLICATION_JSON_VALUE,
@@ -88,6 +76,24 @@ public class AuthController {
                                 finalCorrelationId
                         )
                 );
+    }
+
+    @PostMapping(value = "/resend-verification",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<Void>> resendVerification(
+            @RequestBody @Valid ResendVerificationRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return authService.resendVerification(request)
+                .thenReturn(apiResponseFactory.success(
+                        "If your email is registered and not yet verified, a new verification code has been sent.",
+                        null,
+                        finalCorrelationId
+                ));
     }
 
 
