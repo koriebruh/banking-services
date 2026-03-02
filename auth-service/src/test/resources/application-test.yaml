@@ -1,0 +1,68 @@
+# ============================================================================
+# INTEGRATION TEST CONFIGURATION
+# ============================================================================
+# This configuration is used for integration tests with TestContainers.
+# All sensitive values are overridden by DynamicPropertySource in BaseIntegrationTest.
+# ============================================================================
+
+spring:
+  application:
+    name: auth-service-test
+
+  # Database - will be overridden by TestContainers
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test_db
+    username: test
+    password: test
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/test_db
+    username: test
+    password: test
+
+  # Flyway
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: false  # Allow clean in test environment
+
+  # Redis - will be overridden by TestContainers
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # Kafka - will be overridden by TestContainers
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+      group-id: auth-service-test
+
+  # Mail - mock for tests
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# JWT Configuration for tests
+app:
+  jwt:
+    secret: test-secret-key-that-is-at-least-256-bits-long-for-hmac-sha256-algorithm
+    access-token-expiration: 900000    # 15 minutes
+    refresh-token-expiration: 604800000 # 7 days
+    mfa-token-expiration: 300000       # 5 minutes
+
+# Logging
+logging:
+  level:
+    com.koriebruh.authservice: DEBUG
+    org.springframework.r2dbc: DEBUG
+    org.testcontainers: INFO
+    org.flywaydb: INFO
+
