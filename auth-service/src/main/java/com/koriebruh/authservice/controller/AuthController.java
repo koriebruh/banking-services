@@ -9,19 +9,21 @@ import com.koriebruh.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.UUID;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
+@Tag(name = "Authentication", description = "Banking authentication endpoints")
 public class AuthController {
 
 
@@ -37,6 +39,7 @@ public class AuthController {
     }
 
 
+    @Operation(summary = "Register new user", description = "Register a new banking user account")
     @PostMapping(value = "/register",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -59,6 +62,7 @@ public class AuthController {
                 );
     }
 
+    @Operation(summary = "Verify email OTP", description = "Verify email with OTP sent to user's email")
     @PostMapping(value = "/verify-email",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -78,6 +82,7 @@ public class AuthController {
                 );
     }
 
+    @Operation(summary = "Resend verification OTP")
     @PostMapping(value = "/resend-verification",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -97,6 +102,7 @@ public class AuthController {
     }
 
 
+    @Operation(summary = "Login", description = "Login with email and password")
     @PostMapping(value = "/login",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -124,6 +130,8 @@ public class AuthController {
                 );
     }
 
+
+    @Operation(summary = "MFA Setup", description = "Generate QR code for Google Authenticator setup")
     @PostMapping(value = "/mfa/setup",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
@@ -144,7 +152,7 @@ public class AuthController {
                 );
     }
 
-
+    @Operation(summary = "MFA Setup Verify", description = "Confirm first OTP to activate MFA")
     @PostMapping(value = "/mfa/setup/verify",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -167,7 +175,7 @@ public class AuthController {
                 );
     }
 
-
+    @Operation(summary = "MFA Validate", description = "Exchange MFA token + OTP for access token")
     @PostMapping(value = "/mfa/validate",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -197,6 +205,8 @@ public class AuthController {
                 );
     }
 
+
+    @Operation(summary = "Logout", description = "Revoke refresh token")
     @PostMapping(value = "/logout",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -217,6 +227,8 @@ public class AuthController {
                 ));
     }
 
+
+    @Operation(summary = "Refresh Token", description = "Exchange refresh token for new access token")
     @PostMapping(value = "/refresh",
             produces = MediaType.APPLICATION_JSON_VALUE
     )
@@ -240,6 +252,7 @@ public class AuthController {
                 );
     }
 
+    @Operation(summary = "Change Password")
     @PostMapping(value = "/change-password",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -260,6 +273,7 @@ public class AuthController {
                 ));
     }
 
+    @Operation(summary = "Forgot Password", description = "Send OTP to email for password reset")
     @PostMapping(value = "/forgot-password",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE
@@ -279,6 +293,8 @@ public class AuthController {
                 ));
     }
 
+
+    @Operation(summary = "Reset Password", description = "Reset password using OTP from email")
     @PostMapping(value = "/reset-password",
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE

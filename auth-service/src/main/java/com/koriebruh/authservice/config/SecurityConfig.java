@@ -33,6 +33,12 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/refresh").permitAll()
                         .pathMatchers("/api/v1/auth/forgot-password").permitAll()
                         .pathMatchers("/api/v1/auth/reset-password").permitAll()
+
+                        // swagger
+                        .pathMatchers("/swagger-ui.html").permitAll()
+                        .pathMatchers("/swagger-ui/**").permitAll()
+                        .pathMatchers("/api-docs/**").permitAll()
+                        .pathMatchers("/webjars/**").permitAll()
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
