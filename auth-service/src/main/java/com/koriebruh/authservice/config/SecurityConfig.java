@@ -30,6 +30,8 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/login").permitAll()
                         .pathMatchers("/api/v1/auth/verify-email").permitAll()
                         .pathMatchers("/api/v1/auth/refresh").permitAll()
+                        .pathMatchers("/api/v1/auth/forgot-password").permitAll()
+                        .pathMatchers("/api/v1/auth/reset-password").permitAll()
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)

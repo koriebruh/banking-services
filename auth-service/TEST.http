@@ -47,7 +47,7 @@ X-Correlation-ID: {{correlationId}}
 
 ### 5. MFA SETUP
 # MASUKAN ACCESS TOKEN DARI RESPONSE LOGIN SEBELUMNYA
-@accessToken = eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMwMS0wMDAwMiIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIzZWM3M2I1Ny03ZTdiLTQ4MjAtYjUyNy0xNTc5MmJhMmNhOTUiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3MjM0NTU2MH0.5c3mwJNO5dbfUvfdwMb_sformY4GhZZovCj2bWTxg-UME0WV_71_9FW1geF4tkWDn8IM2uoIC-jPXc1ug-43-A
+@accessToken = eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMwMS0wMDAwMiIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIyMDZkNWI2Ny0xOWFhLTQyYTMtYmIxYy05YjA3MTBiNjBmYzIiLCJpYXQiOjE3NzIzNzIwMDEsImV4cCI6MTc3MjM3MjkwMX0.Q46TsLjw3igliTUZ9kMrMq83-Ykfy3K9hTPybEWFW1zrhwbNOClHb4hK5shesVbbpWWo44N69kb426T-vA7mpg
 POST {{host}}/api/v1/auth/mfa/setup
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}
@@ -72,7 +72,7 @@ Authorization: Bearer {{accessToken}}
 ### 7.  MFA VALIDATE — tukar mfaToken → accessToken + refreshToken
 # 1. DAPATKAN MFA TOKEN DARI RESPONSE LOGIN SEBELUMNYA
 # 2  OTP COODE DI DAPAT DARI APLIKASI AUTHENTICATOR
-@mfaToken = eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoibWZhIiwic3ViIjoiODgzMjE4NDQtYWMyNy00MDcwLWFlNGUtMjE1OTJjZDUxMzM0IiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImF1dGgtc2VydmljZSJdLCJqdGkiOiJkMWI1NDMzZS0wODViLTRhODEtYTljMS1jNWJmNTUyY2Q0MDciLCJpYXQiOjE3NzIzNDQ2MjAsImV4cCI6MTc3MjM0NDkyMH0.NagTDA2qxqZyvRhtJSXGERmGyRW2ZmK6pr9PHP-y0uAr6xCLtXm8fctrdnVjYOKFtKR9oq4xtXAy-WXm04vMog
+@mfaToken = eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoibWZhIiwic3ViIjoiODgzMjE4NDQtYWMyNy00MDcwLWFlNGUtMjE1OTJjZDUxMzM0IiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImF1dGgtc2VydmljZSJdLCJqdGkiOiI2MTAwYzBiMC05ZmI3LTQxOWItYmQzYy05YjI2ZDhjMDY4YzYiLCJpYXQiOjE3NzIzNzE5NTEsImV4cCI6MTc3MjM3MjI1MX0.f-mPGW0mp3CffZxV9lYQFCk25vNRK51YAu6DCxkZBM9rSOJaYeSK0UWm967A_cChFbXmpKvHnNZpzANzxZLIfA
 POST {{host}}/api/v1/auth/mfa/validate
 Content-Type: application/json
 Accept: application/json
@@ -80,11 +80,11 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{mfaToken}}
 
 {
-  "otp_code": "361736"
+  "otp_code": "669991"
 }
 
 
-### 9. REFRESH TOKEN — TO GET NEW ACCESS TOKEN
+### 8. REFRESH TOKEN — TO GET NEW ACCESS TOKEN
 @refresh_token = eyJhbGciOiJIUzUxMiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMwMS0wMDAwMiIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiIzZWM3M2I1Ny03ZTdiLTQ4MjAtYjUyNy0xNTc5MmJhMmNhOTUiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3MjM0NTU2MH0.5c3mwJNO5dbfUvfdwMb_sformY4GhZZovCj2bWTxg-UME0WV_71_9FW1geF4tkWDn8IM2uoIC-jPXc1ug-43-A
 POST http://localhost:8080/api/v1/auth/refresh
 X-Correlation-ID: {{correlationId}}
@@ -92,7 +92,7 @@ Authorization: Bearer {{refresh_token}}
 Accept: application/json
 
 
-### 8. LOGOUT, INVALIDATE REFRESH TOKEN
+### 9. LOGOUT, INVALIDATE REFRESH TOKEN
 POST {{host}}/api/v1/auth/logout
 Content-Type: application/json
 Accept: application/json
@@ -103,3 +103,38 @@ Authorization: Bearer {{accessToken}}
   "refresh_token" :"eyJhbGciOiJIUzUxMiJ9.eyJ0eXBlIjoicmVmcmVzaCIsInN1YiI6Ijg4MzIxODQ0LWFjMjctNDA3MC1hZTRlLTIxNTkyY2Q1MTMzNCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjZjc0N2ViYS04OWM2LTQ1NzAtODc2Yi1iMmJiM2RiOTAxNjQiLCJpYXQiOjE3NzIzNDQ2NjAsImV4cCI6MTc3Mjk0OTQ2MH0.8wvwt2miZL427lUS2_Roch0FuNicCYmd4Cl1_f3r925IkydeiOXQ5IhUgSwQRhdySxTGue9OzENrR8tFSirPVg"
 }
 
+### 10. REQUEST CHANGE PASSWORD
+POST {{host}}/api/v1/auth/change-password
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "current_password": "ValidPass4$",
+  "new_password": "Joko1234$",
+  "confirm_password": "Joko1234$"
+}
+
+### 11. FORGET PASSWORD REQUEST
+POST {{host}}/api/v1/auth/forgot-password
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+
+{
+  "email": "maya.kartika.sari@example.com"
+}
+
+### 12. VERIFY FORGOT PASSWORD OTP
+POST {{host}}/api/v1/auth/reset-password
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+
+{
+  "email": "maya.kartika.sari@example.com",
+  "otp_code": "725623",
+  "new_password": "ValidPass4$",
+  "confirm_password": "ValidPass4$"
+}

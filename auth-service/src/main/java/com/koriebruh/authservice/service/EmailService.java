@@ -43,4 +43,30 @@ public class EmailService {
                 .subscribeOn(Schedulers.boundedElastic()) // offload blocking mail sender
                 .then();
     }
+
+    /**
+     * Kirim OTP reset password ke email user.
+     * Subject dan body berbeda dari verification email — jelas tujuannya.
+     */
+    public Mono<Void> sendResetPasswordOtp(String toEmail, String otp) {
+        return Mono.fromRunnable(() -> {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom("noreply@bankingapp.com");
+                    message.setTo(toEmail);
+                    message.setSubject("Reset Password - Banking App");
+                    message.setText("""
+                            Your password reset code:
+                            
+                            %s
+                            
+                            This code will expire in 3 minutes.
+                            If you did not request this, please contact support immediately.
+                            """.formatted(otp));
+
+                    mailSender.send(message);
+                    log.info("Reset password OTP sent. email={}", toEmail);
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .then();
+    }
 }

@@ -606,9 +606,131 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
-//    // CHANGE PASSWORD
 
-    // MFA VEIFY GET TOKEN
+    /**
+     * CHANGE PASSWORD - Ganti password user yang sedang login.
+     *
+     * Flow:
+     * 1. Fetch user dari DB by userId (dari SecurityContext)
+     * 2. Verify current password
+     * 3. Pastikan new password != current password
+     * 4. Pastikan new password == confirm password
+     * 5. Hash new password, update di DB
+     * 6. Revoke semua refresh token (force re-login semua device)
+     *
+     * Security notes:
+     * - Semua refresh token di-revoke setelah ganti password (banking standard)
+     * - Current password wajib diverifikasi sebelum ganti
+     * - New password tidak boleh sama dengan current password
+     */
+    public Mono<Void> changePassword(String userId, ChangePasswordRequest request) {
+        return userRepository.findById(UUID.fromString(userId))
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
+
+                    // VERIFY CURRENT PASSWORD
+                    if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+                        log.warn("Change password failed - wrong current password. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.InvalidCurrentPasswordException());
+                    }
+
+                    // PASTIKAN NEW PASSWORD BERBEDA
+                    if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+                        log.warn("Change password failed - new password same as current. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.SamePasswordException());
+                    }
+
+                    // PASTIKAN CONFIRM PASSWORD MATCH
+                    if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                        log.warn("Change password failed - confirm password mismatch. userCode={}", user.getUserCode());
+                        return Mono.error(new UserExceptions.PasswordMismatchException());
+                    }
+
+                    String newPasswordHash = passwordEncoder.encode(request.getNewPassword());
+
+                    // UPDATE PASSWORD + REVOKE SEMUA REFRESH TOKEN
+                    return userRepository.updatePassword(user.getId(), newPasswordHash, Instant.now())
+                            .then(refreshTokenRepository.revokeAllUserTokens(user.getId(), Instant.now()))
+                            .doOnSuccess(v -> log.info("Password changed successfully. userCode={}", user.getUserCode()));
+                })
+                .as(transactionalOperator::transactional);
+    }
+
+    /**
+     * FORGOT PASSWORD - Kirim OTP reset password ke email.
+     *
+     * Flow:
+     * 1. Cek apakah email terdaftar
+     * 2. Generate OTP, simpan ke Redis (key: reset-otp:<email>, expiry: 3 menit)
+     * 3. Kirim OTP ke email
+     *
+     * Security notes:
+     * - Response SELALU success meskipun email tidak ditemukan
+     *   (prevent user enumeration — attacker tidak tau email mana yang terdaftar)
+     * - OTP expiry 3 menit, lebih pendek dari email verification
+     */
+    public Mono<Void> forgotPassword(ForgotPasswordRequest request) {
+        return userRepository.findByEmail(request.getEmail())
+                .flatMap(user ->
+                        emailOtpService.generateAndStoreResetOtp(request.getEmail())
+                                .flatMap(otp -> emailService.sendResetPasswordOtp(request.getEmail(), otp))
+                                .doOnSuccess(v -> log.info("Reset password OTP sent. email={}", maskEmail(request.getEmail())))
+                )
+                // SELALU return success — jangan expose apakah email terdaftar atau tidak
+                .then()
+                .doOnError(e -> log.error("Failed to send reset OTP. email={}, reason={}",
+                        maskEmail(request.getEmail()), e.getMessage()))
+                .onErrorComplete(); // swallow error — tetap return 200
+    }
+
+    /**
+     * RESET PASSWORD - Reset password pakai OTP dari email.
+     *
+     * Flow:
+     * 1. Verify OTP dari Redis
+     * 2. Fetch user by email
+     * 3. Pastikan new password == confirm password
+     * 4. Pastikan new password != current password
+     * 5. Hash new password, update di DB
+     * 6. Revoke semua refresh token (force re-login semua device)
+     *
+     * Security notes:
+     * - OTP single-use, langsung dihapus setelah dicek
+     * - Semua refresh token di-revoke setelah reset password
+     */
+    public Mono<Void> resetPassword(ResetPasswordRequest request) {
+        return emailOtpService.verifyResetOtp(request.getEmail(), request.getOtpCode())
+                .flatMap(isValid -> {
+                    if (!isValid) {
+                        log.warn("Reset password failed - invalid or expired OTP. email={}", maskEmail(request.getEmail()));
+                        return Mono.error(new UserExceptions.InvalidOtpException());
+                    }
+                    return userRepository.findByEmail(request.getEmail());
+                })
+                .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
+                .flatMap(user -> {
+
+                    // PASTIKAN CONFIRM PASSWORD MATCH
+                    if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                        log.warn("Reset password failed - confirm password mismatch. email={}", maskEmail(request.getEmail()));
+                        return Mono.error(new UserExceptions.PasswordMismatchException());
+                    }
+
+                    // PASTIKAN NEW PASSWORD BERBEDA DARI CURRENT
+                    if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+                        log.warn("Reset password failed - new password same as current. email={}", maskEmail(request.getEmail()));
+                        return Mono.error(new UserExceptions.SamePasswordException());
+                    }
+
+                    String newPasswordHash = passwordEncoder.encode(request.getNewPassword());
+
+                    // UPDATE PASSWORD + REVOKE SEMUA REFRESH TOKEN
+                    return userRepository.updatePassword(user.getId(), newPasswordHash, Instant.now())
+                            .then(refreshTokenRepository.revokeAllUserTokens(user.getId(), Instant.now()))
+                            .doOnSuccess(v -> log.info("Password reset successfully. userCode={}", user.getUserCode()));
+                })
+                .as(transactionalOperator::transactional);
+    }
 
 
 }

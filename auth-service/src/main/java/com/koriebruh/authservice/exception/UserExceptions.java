@@ -72,6 +72,24 @@ public class UserExceptions extends RuntimeException {
         }
     }
 
+    public static class InvalidCurrentPasswordException extends UserExceptions {
+        public InvalidCurrentPasswordException() {
+            super("Current password is incorrect");
+        }
+    }
+
+    public static class SamePasswordException extends UserExceptions {
+        public SamePasswordException() {
+            super("New password must be different from current password");
+        }
+    }
+
+    public static class PasswordMismatchException extends UserExceptions {
+        public PasswordMismatchException() {
+            super("New password and confirm password do not match");
+        }
+    }
+
     public static class DuplicateEmailException extends UserExceptions {
         public DuplicateEmailException(String email) {
             super("Email '" + email + "' is already registered");

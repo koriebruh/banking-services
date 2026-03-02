@@ -234,5 +234,61 @@ public class AuthController {
                 );
     }
 
+    @PostMapping(value = "/change-password",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<Void>> changePassword(
+            @RequestBody @Valid ChangePasswordRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
+                .flatMap(userId -> authService.changePassword(userId, request))
+                .thenReturn(apiResponseFactory.success(
+                        "Password changed successfully. Please login again.",
+                        null,
+                        finalCorrelationId
+                ));
+    }
+
+    @PostMapping(value = "/forgot-password",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<Void>> forgotPassword(
+            @RequestBody @Valid ForgotPasswordRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return authService.forgotPassword(request)
+                .thenReturn(apiResponseFactory.success(
+                        // Pesan generic — tidak expose apakah email terdaftar
+                        "If your email is registered, you will receive a password reset code.",
+                        null,
+                        finalCorrelationId
+                ));
+    }
+
+    @PostMapping(value = "/reset-password",
+            produces = MediaType.APPLICATION_JSON_VALUE,
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Mono<ApiResponse<Void>> resetPassword(
+            @RequestBody @Valid ResetPasswordRequest request,
+            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+    ) {
+        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
+
+        return authService.resetPassword(request)
+                .thenReturn(apiResponseFactory.success(
+                        "Password reset successfully. Please login with your new password.",
+                        null,
+                        finalCorrelationId
+                ));
+    }
 
 }
