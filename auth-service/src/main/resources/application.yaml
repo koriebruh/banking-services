@@ -1,6 +1,7 @@
 spring:
   application:
     name: auth-service
+
   jackson:
     property-naming-strategy: SNAKE_CASE
 
@@ -35,19 +36,27 @@ spring:
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
 
+logging:
+  level:
+    org.springframework.beans.factory: DEBUG
+
+# CUSTOM CONFIGURATION
 app:
   jwt:
     secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
     mfa-token-expiration: 300000        # 5 minutes (5 * 60 * 1000)
     access-token-expiration: 900000     # 15 minutes (15 * 60 * 1000)
     refresh-token-expiration: 604800000 # 7 days (7 * 24 * 60 * 60 * 1000)
-
-  issuer: auth-service
   version: v1
+
+  kafka:
+    topic:
+      auth-events: auth.events
+    event:
+      version: v1
 
 springdoc:
   api-docs:

@@ -1,6 +1,5 @@
 package com.koriebruh.authservice.service;
 
-import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.mapper.UserMapper;
 import com.koriebruh.authservice.dto.request.*;
 import com.koriebruh.authservice.dto.response.*;
@@ -8,6 +7,8 @@ import com.koriebruh.authservice.entity.RefreshToken;
 import com.koriebruh.authservice.entity.User;
 import com.koriebruh.authservice.entity.UserRole;
 import com.koriebruh.authservice.entity.UserStatus;
+import com.koriebruh.authservice.event.AuthEventPublisher;
+import com.koriebruh.authservice.event.AuthEventType;
 import com.koriebruh.authservice.exception.UserExceptions;
 import com.koriebruh.authservice.repository.RefreshTokenRepository;
 import com.koriebruh.authservice.repository.UserRepository;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -57,20 +59,34 @@ public class AuthService {
 
     private static final long LOCK_DURATION_MINUTES = 15;
 
+    private final AuthEventPublisher eventPublisher;
+
+    // -------------------------------------------------------------------------
+    // REGISTRATION
+    // -------------------------------------------------------------------------
+
     /**
-     * Register new user using fully reactive flow (WebFlux + R2DBC).
-     * <p>
-     * Flow:
-     * 1. Validate unique fields asynchronously (parallel DB checks)
-     * 2. Generate business userCode from database sequence
-     * 3. Build entity & hash password
-     * 4. Persist user inside reactive transaction
-     * 5. Map to response DTO
-     * <p>
-     * NOTE:
-     * - No blocking calls allowed.
-     * - Unique constraint MUST still exist at DB level.
-     * - Sequence gaps are acceptable (normal DB behavior).
+     * Registers a new user using a fully reactive flow (WebFlux + R2DBC).
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Validate unique fields asynchronously in parallel (email, NIK, phone)</li>
+     *   <li>Generate a business {@code userCode} from the database sequence</li>
+     *   <li>Build the user entity and hash the password</li>
+     *   <li>Persist the user inside a reactive transaction</li>
+     *   <li>Send an email OTP for address verification</li>
+     *   <li>Map to response DTO</li>
+     * </ol>
+     *
+     * <p>Notes:
+     * <ul>
+     *   <li>No blocking calls are allowed in this method.</li>
+     *   <li>Unique constraints must still exist at the DB level as the ultimate guard against race conditions.</li>
+     *   <li>Sequence gaps in {@code userCode} are acceptable and expected DB behavior.</li>
+     * </ul>
+     *
+     * @param request registration payload
+     * @return {@link RegisterResponse} containing the newly created user's details
      */
     public Mono<RegisterResponse> registerUser(RegisterRequest request) {
 
@@ -112,22 +128,15 @@ public class AuthService {
                 .flatMap(response ->
                         emailOtpService.generateAndStoreOtp(request.getEmail())
                                 .flatMap(otp -> emailService.sendVerificationOtp(request.getEmail(), otp))
+                                .then(eventPublisher.publish(
+                                        AuthEventType.USER_REGISTERED,
+                                        response.getUserCode(),
+                                        maskEmail(request.getEmail()),
+                                        null, null, null
+                                ))
                                 .thenReturn(response)
                 )
                 .as(transactionalOperator::transactional);
-    }
-
-    /**
-     * [SECURITY] Masking email untuk keperluan logging.
-     * Contoh: koriebruh@gmail.com → k*******h@gmail.com
-     * Wajib untuk compliance perbankan (PII protection).
-     */
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        String[] parts = email.split("@");
-        String local = parts[0];
-        if (local.length() <= 2) return "**@" + parts[1];
-        return local.charAt(0) + "*".repeat(local.length() - 2) + local.charAt(local.length() - 1) + "@" + parts[1];
     }
 
     /**
@@ -173,18 +182,29 @@ public class AuthService {
     }
 
 
+    // -------------------------------------------------------------------------
+    // EMAIL VERIFICATION
+    // -------------------------------------------------------------------------
+
     /**
-     * VERIFY EMAIL - Aktivasi akun setelah register.
-     * <p>
-     * Flow:
-     * 1. Cek OTP di Redis — expired/tidak ada = error
-     * 2. Verify OTP valid
-     * 3. Update status user → ACTIVE, emailVerified = true
-     * <p>
-     * Security notes:
-     * - OTP single-use, langsung dihapus dari Redis setelah dicek
-     * - OTP expired otomatis setelah 5 menit (Redis TTL)
-     * - Generic error untuk OTP invalid (tidak expose detail)
+     * Verifies a user's email address using the OTP that was sent on registration.
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Look up the OTP in Redis; an absent or expired entry is treated as invalid</li>
+     *   <li>Validate the supplied OTP code</li>
+     *   <li>Update the user record: {@code status = ACTIVE}, {@code emailVerified = true}</li>
+     * </ol>
+     *
+     * <p>Security notes:
+     * <ul>
+     *   <li>OTP is single-use — it is deleted from Redis immediately after verification.</li>
+     *   <li>OTP expires automatically after 5 minutes via Redis TTL.</li>
+     *   <li>Generic error messages are used to avoid leaking information.</li>
+     * </ul>
+     *
+     * @param request contains the email and the 6-digit OTP code
+     * @return {@link VerifyEmailOtpResponse} confirming successful verification
      */
     public Mono<VerifyEmailOtpResponse> verifyEmailOtp(VerifyEmailOtpRequest request) {
         return emailOtpService.verifyOtp(request.getEmail(), request.getOtpCode())
@@ -214,20 +234,25 @@ public class AuthService {
 
 
     /**
-     * RESEND VERIFICATION - Kirim ulang OTP verify email.
+     * Re-sends the email verification OTP to the given address.
      *
-     * Flow:
-     * 1. Cari user by email
-     * 2. Pastikan user belum verified
-     * 3. Pastikan status masih PENDING_VERIFICATION
-     * 4. Generate OTP baru (otomatis overwrite yang lama di Redis)
-     * 5. Kirim OTP ke email
+     * <p>Flow:
+     * <ol>
+     *   <li>Look up the user by email</li>
+     *   <li>Skip silently if the email is already verified</li>
+     *   <li>Skip silently if the account status is not {@code PENDING_VERIFICATION}</li>
+     *   <li>Generate a new OTP (automatically overwrites the previous Redis entry)</li>
+     *   <li>Send the OTP via email</li>
+     * </ol>
      *
-     * Security notes:
-     * - Response SELALU success meskipun email tidak ditemukan
-     *   (prevent user enumeration)
-     * - OTP lama otomatis ter-overwrite di Redis karena pakai key yang sama
-     * - Endpoint ini public — tidak butuh token
+     * <p>Security notes:
+     * <ul>
+     *   <li>Always returns success regardless of whether the email is registered (prevents user enumeration).</li>
+     *   <li>This endpoint is public — no authentication token required.</li>
+     * </ul>
+     *
+     * @param request contains the email to resend the OTP to
+     * @return empty {@link Mono} on completion
      */
     public Mono<Void> resendVerification(ResendVerificationRequest request) {
         return userRepository.findByEmail(request.getEmail())
@@ -258,21 +283,36 @@ public class AuthService {
                 .onErrorComplete();
     }
 
+    // -------------------------------------------------------------------------
+    // AUTHENTICATION
+    // -------------------------------------------------------------------------
+
     /**
-     * LOGIN - Step 1: Credential Validation & MFA Token Issuance
-     * <p>
-     * Flow:
-     * 1. Lookup user by email — generic error if not found (prevent user enumeration)
-     * 2. Check account lock status — reject immediately if still within lock period
-     * 3. Validate password — delegate to handleFailedLogin() if wrong
-     * 4. Check user status — only ACTIVE users may proceed
-     * 5. Reset failed login counter on success
-     * 6. Generate short-lived MFA token — actual JWT issued after MFA verification
-     * <p>
-     * Security notes:
-     * - LoginFailException is intentionally generic (email not found = wrong password = same error)
-     * - IP address and userAgent are logged for audit trail (banking compliance)
-     * - Password is never logged, email is masked in logs (PII protection)
+     * Authenticates a user with email and password (Step 1 of the login flow).
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Look up the user by email</li>
+     *   <li>Reject immediately if the account is still within its lock period</li>
+     *   <li>Validate the password; delegate to {@link #handleFailedLogin} on mismatch</li>
+     *   <li>Reject if the account status is not {@code ACTIVE}</li>
+     *   <li>Reset the failed-login counter on success</li>
+     *   <li>If MFA is enabled: issue a short-lived MFA token</li>
+     *   <li>If MFA is disabled: issue an access token and a refresh token directly</li>
+     * </ol>
+     *
+     * <p>Security notes:
+     * <ul>
+     *   <li>{@link UserExceptions.LoginFailException} is intentionally generic —
+     *       "email not found" and "wrong password" return the same error to prevent user enumeration.</li>
+     *   <li>IP address and user-agent are logged for banking compliance audit trails.</li>
+     *   <li>Passwords are never logged; emails are masked to protect PII.</li>
+     * </ul>
+     *
+     * @param request   login payload (email + password)
+     * @param ipAddress originating IP address for audit logging
+     * @param userAgent originating user-agent for audit logging
+     * @return {@link LoginResponse} containing either an MFA token or a full token pair
      */
     public Mono<LoginResponse> loginUser(LoginRequest request, String ipAddress, String userAgent) {
         return userRepository.findByEmail(request.getEmail())
@@ -324,7 +364,15 @@ public class AuthService {
                                             .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
                                             .build();
                                 }
-                            }));
+                            }))
+                            .flatMap(response ->
+                                    eventPublisher.publish(
+                                            AuthEventType.LOGIN_SUCCESS,
+                                            user.getUserCode(),
+                                            maskEmail(request.getEmail()),
+                                            ipAddress, userAgent, null
+                                    ).thenReturn(response)
+                            );
                 })
                 .doOnSuccess(response ->
                         log.info("Login success. MFA required={}, email={}, ip={}",
@@ -339,6 +387,17 @@ public class AuthService {
                 .as(transactionalOperator::transactional);
     }
 
+    /**
+     * Handles a failed login attempt by incrementing the counter and locking the account
+     * when the maximum number of consecutive failures is reached.
+     *
+     * <p>Lock policy: after {@value #MAX_FAILED_ATTEMPTS} consecutive failures the account
+     * is locked for {@value #LOCK_DURATION_MINUTES} minutes.
+     *
+     * @param user the user entity that failed authentication
+     * @return an error {@link Mono} — either {@link UserExceptions.AccountLockedException}
+     * or {@link UserExceptions.LoginFailException}
+     */
     private Mono<LoginResponse> handleFailedLogin(User user) {
         short newFailedCount = (short) (user.getFailedLogin() + 1);
         Instant now = Instant.now();
@@ -351,6 +410,15 @@ public class AuthService {
 
             return userRepository.updateFailedLoginAttempts(user.getId(), newFailedCount, now)
                     .then(userRepository.lockUser(user.getId(), lockedUntil, now))
+                    .then(eventPublisher.publish(
+                            newFailedCount >= MAX_FAILED_ATTEMPTS
+                                    ? AuthEventType.ACCOUNT_LOCKED
+                                    : AuthEventType.LOGIN_FAILED,
+                            user.getUserCode(),
+                            maskEmail(user.getEmail()),
+                            null, null,
+                            Map.of("failedAttempts", newFailedCount)   // ← metadata
+                    ))
                     .then(Mono.error(new UserExceptions.AccountLockedException(lockedUntil)));
         }
 
@@ -362,33 +430,34 @@ public class AuthService {
                 .then(Mono.error(new UserExceptions.LoginFailException()));
     }
 
-    private String hashToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Failed to hash token", e);
-        }
-    }
+    // -------------------------------------------------------------------------
+    // MULTI-FACTOR AUTHENTICATION (MFA)
+    // -------------------------------------------------------------------------
 
     /**
-     * MFA SETUP - Generate secret dan QR code untuk user.
-     * <p>
-     * Flow:
-     * 1. Fetch user dari DB by userId (dari SecurityContext)
-     * 2. Pastikan email sudah verified sebelum setup MFA
-     * 3. Pastikan MFA belum di-setup sebelumnya
-     * 4. Generate TOTP secret
-     * 5. Simpan secret ke DB (mfa_enabled masih false)
-     * 6. Generate QR code base64 di server — secret tidak keluar ke pihak ketiga
-     * 7. Return QR code + secret (secret untuk backup manual entry)
-     * <p>
-     * Security notes:
-     * - QR code di-generate di server sendiri, bukan pakai API eksternal
-     * - Secret tidak pernah dikirim ke pihak ketiga
-     * - mfa_enabled = false sampai user konfirmasi OTP pertama via /mfa/setup/verify
-     * - Secret sebaiknya diencrypt di DB untuk production (AES-256)
+     * Initiates MFA setup by generating a TOTP secret and a QR code for the user.
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Fetch the user from the database using the ID from the security context</li>
+     *   <li>Ensure the email has been verified before allowing MFA setup</li>
+     *   <li>Ensure MFA has not already been enabled</li>
+     *   <li>Generate a TOTP secret</li>
+     *   <li>Persist the secret ({@code mfaEnabled} remains {@code false} until confirmed)</li>
+     *   <li>Generate a QR code as a Base64-encoded PNG on the server side</li>
+     *   <li>Return the QR code and the plain-text secret for manual entry as a backup</li>
+     * </ol>
+     *
+     * <p>Security notes:
+     * <ul>
+     *   <li>The QR code is generated server-side — the secret is never sent to a third-party API.</li>
+     *   <li>{@code mfaEnabled} is set to {@code true} only after the first OTP is confirmed
+     *       via {@code /mfa/setup/verify}.</li>
+     *   <li>Consider encrypting {@code mfaSecret} at rest (AES-256) for production.</li>
+     * </ul>
+     *
+     * @param userId ID of the authenticated user (extracted from the JWT)
+     * @return {@link MfaSetupResponse} containing the QR code and the plain-text secret
      */
     public Mono<MfaSetupResponse> setupMfa(String userId) {
         return userRepository.findById(UUID.fromString(userId))
@@ -439,6 +508,23 @@ public class AuthService {
     }
 
 
+    /**
+     * Confirms the MFA setup by verifying the first TOTP code from the authenticator app.
+     * Sets {@code mfaEnabled = true} upon success.
+     *
+     * <p>Flow:
+     * <ol>
+     *   <li>Fetch the user by ID</li>
+     *   <li>Ensure the TOTP secret exists (setup must have been initiated first)</li>
+     *   <li>Ensure MFA is not already enabled</li>
+     *   <li>Verify the OTP against the stored secret</li>
+     *   <li>Set {@code mfaEnabled = true}</li>
+     * </ol>
+     *
+     * @param userId  ID of the authenticated user (extracted from the JWT)
+     * @param request contains the 6-digit OTP from Google Authenticator
+     * @return {@link MfaSetupVerifyResponse} confirming that MFA is now active
+     */
     public Mono<MfaSetupVerifyResponse> verifyMfaSetup(String userId, MfaSetupVerifyRequest request) {
         return userRepository.findById(UUID.fromString(userId))
                 .switchIfEmpty(Mono.error(new UserExceptions.LoginFailException()))
@@ -468,6 +554,13 @@ public class AuthService {
                             user.toBuilder()
                                     .mfaEnabled(true)
                                     .build()
+                    ).flatMap(updatedUser ->
+                            eventPublisher.publish(
+                                    AuthEventType.MFA_ENABLED,
+                                    updatedUser.getUserCode(),
+                                    maskEmail(updatedUser.getEmail()),
+                                    null, null, null
+                            ).thenReturn(updatedUser)
                     );
                 })
                 .map(updatedUser -> {
@@ -481,23 +574,34 @@ public class AuthService {
     }
 
     /**
-     * MFA VALIDATE - Tukar mfaToken + OTP → accessToken + refreshToken.
+     * Validates the MFA OTP and issues a full token pair (access + refresh).
+     * This is Step 2 of the login flow for MFA-enabled accounts.
      *
-     * Flow:
-     * 1. Extract userId dari mfaToken (sudah divalidasi JwtAuthenticationFilter)
-     * 2. Fetch user dari DB
-     * 3. Pastikan MFA sudah enabled
-     * 4. Verify OTP terhadap secret user
-     * 5. Generate accessToken + refreshToken
-     * 6. Hash refreshToken, simpan ke DB dengan IP + userAgent
-     * 7. Update last_login_at
-     * 8. Return accessToken + refreshToken
+     * <p>Flow:
+     * <ol>
+     *   <li>Fetch the user from the database by ID (injected into the security context by the JWT filter)</li>
+     *   <li>Ensure MFA is enabled and a secret exists</li>
+     *   <li>Verify the OTP against the stored TOTP secret</li>
+     *   <li>Generate an access token and a refresh token</li>
+     *   <li>Hash the refresh token (SHA-256) and persist it with IP and user-agent metadata</li>
+     *   <li>Update {@code lastLoginAt}</li>
+     *   <li>Return both tokens</li>
+     * </ol>
      *
-     * Security notes:
-     * - mfaToken sudah divalidasi di JwtAuthenticationFilter sebelum masuk sini
-     * - refreshToken di-hash SHA-256 sebelum disimpan ke DB
-     * - OTP gagal = generic error, tidak expose detail ke client
-     * - IP dan userAgent disimpan untuk audit trail (banking compliance)
+     * <p>Security notes:
+     * <ul>
+     *   <li>The MFA token in the {@code Authorization} header has already been validated
+     *       by {@code JwtAuthenticationFilter} before this method is called.</li>
+     *   <li>Refresh tokens are stored as SHA-256 hashes — plain tokens never touch the database.</li>
+     *   <li>Generic error messages are used on OTP failure to avoid information leakage.</li>
+     *   <li>IP address and user-agent are persisted for banking compliance audit trails.</li>
+     * </ul>
+     *
+     * @param userId    ID of the authenticated user (extracted from the MFA JWT)
+     * @param request   contains the 6-digit OTP from Google Authenticator
+     * @param ipAddress originating IP address for audit logging
+     * @param userAgent originating user-agent for audit logging
+     * @return {@link MfaValidateResponse} containing the access token, refresh token, and user metadata
      */
     public Mono<MfaValidateResponse> validateMfa(String userId, MfaValidateRequest request,
                                                  String ipAddress, String userAgent) {
@@ -542,6 +646,12 @@ public class AuthService {
                     // SIMPAN REFRESH TOKEN + UPDATE LAST LOGIN
                     return refreshTokenRepository.save(refreshTokenEntity)
                             .then(userRepository.updateSuccessfulLogin(user.getId(), Instant.now()))
+                            .then(eventPublisher.publish(
+                                    AuthEventType.MFA_VALIDATED,
+                                    user.getUserCode(),
+                                    maskEmail(user.getEmail()),
+                                    ipAddress, userAgent, null
+                            ))
                             .thenReturn(MfaValidateResponse.builder()
                                     .accessToken(accessToken)
                                     .refreshToken(refreshToken)
@@ -563,19 +673,32 @@ public class AuthService {
     }
 
 
+    // -------------------------------------------------------------------------
+    // TOKEN MANAGEMENT
+    // -------------------------------------------------------------------------
+
     /**
-     * LOGOUT - Revoke refresh token.
+     * Revokes a refresh token, effectively logging the user out of the current session.
      *
-     * Flow:
-     * 1. Hash refresh token yang dikirim client
-     * 2. Cari token di DB by hash
-     * 3. Pastikan token valid (tidak expired, tidak revoked)
-     * 4. Revoke token
+     * <p>Flow:
+     * <ol>
+     *   <li>Hash the supplied refresh token</li>
+     *   <li>Look up the token in the database by its hash</li>
+     *   <li>Verify the token is still valid (not expired, not already revoked)</li>
+     *   <li>Verify the token belongs to the currently authenticated user</li>
+     *   <li>Mark the token as revoked</li>
+     * </ol>
      *
-     * Security notes:
-     * - Plain refresh token tidak disimpan di DB, hanya hash-nya
-     * - Token yang sudah revoked tidak bisa dipakai lagi
-     * - Endpoint ini butuh accessToken di header
+     * <p>Security notes:
+     * <ul>
+     *   <li>Plain refresh tokens are never stored in the database — only their SHA-256 hash.</li>
+     *   <li>Revoked tokens cannot be reused.</li>
+     *   <li>This endpoint requires a valid access token in the {@code Authorization} header.</li>
+     * </ul>
+     *
+     * @param userId  ID of the authenticated user (extracted from the JWT)
+     * @param request contains the refresh token to revoke
+     * @return empty {@link Mono} on success
      */
     public Mono<Void> logout(String userId, LogoutRequest request) {
         String tokenHash = hashToken(request.getRefreshToken());
@@ -598,19 +721,29 @@ public class AuthService {
     }
 
     /**
-     * REFRESH TOKEN - Tukar refresh token → access token baru.
+     * Exchanges a valid refresh token for a new access token.
      *
-     * Flow:
-     * 1. refreshToken sudah divalidasi JwtAuthenticationFilter (signature, expiry, type = "refresh")
-     * 2. userId sudah diinject ke SecurityContext oleh filter
-     * 3. Hash token, cari di DB — pastikan tidak direvoke
-     * 4. Fetch user, pastikan masih ACTIVE
-     * 5. Generate access token baru
+     * <p>Flow:
+     * <ol>
+     *   <li>The refresh token in the {@code Authorization} header has already been validated
+     *       (signature, expiry, type = "refresh") by {@code JwtAuthenticationFilter}</li>
+     *   <li>The user ID has already been injected into the security context by the filter</li>
+     *   <li>Hash the token and look it up in the database</li>
+     *   <li>Verify it has not been revoked and belongs to the requesting user</li>
+     *   <li>Verify the user account is still {@code ACTIVE}</li>
+     *   <li>Issue a new access token</li>
+     * </ol>
      *
-     * Security notes:
-     * - Token diambil dari header Authorization, bukan body
-     * - Filter sudah handle validasi JWT, service hanya cek revoke status di DB
-     * - Tidak generate refresh token baru (token rotation bisa ditambah nanti)
+     * <p>Security notes:
+     * <ul>
+     *   <li>The token is taken from the {@code Authorization} header, not the request body.</li>
+     *   <li>The JWT filter handles cryptographic validation; this method only checks revocation status.</li>
+     *   <li>Refresh token rotation can be added here in a future iteration.</li>
+     * </ul>
+     *
+     * @param userId          ID of the authenticated user (extracted from the refresh JWT)
+     * @param rawRefreshToken the plain refresh token from the {@code Authorization} header
+     * @return {@link RefreshTokenResponse} containing the new access token
      */
     public Mono<RefreshTokenResponse> refreshToken(String userId, String rawRefreshToken) {
         String tokenHash = hashToken(rawRefreshToken);
@@ -653,21 +786,32 @@ public class AuthService {
     }
 
 
+    // -------------------------------------------------------------------------
+    // PASSWORD MANAGEMENT
+    // -------------------------------------------------------------------------
+
     /**
-     * CHANGE PASSWORD - Ganti password user yang sedang login.
+     * Changes the password of the currently authenticated user.
      *
-     * Flow:
-     * 1. Fetch user dari DB by userId (dari SecurityContext)
-     * 2. Verify current password
-     * 3. Pastikan new password != current password
-     * 4. Pastikan new password == confirm password
-     * 5. Hash new password, update di DB
-     * 6. Revoke semua refresh token (force re-login semua device)
+     * <p>Flow:
+     * <ol>
+     *   <li>Fetch the user from the database by ID</li>
+     *   <li>Verify the current password</li>
+     *   <li>Reject if the new password is the same as the current password</li>
+     *   <li>Reject if the confirmation password does not match the new password</li>
+     *   <li>Hash and persist the new password</li>
+     *   <li>Revoke all active refresh tokens to force re-login on all devices</li>
+     * </ol>
      *
-     * Security notes:
-     * - Semua refresh token di-revoke setelah ganti password (banking standard)
-     * - Current password wajib diverifikasi sebelum ganti
-     * - New password tidak boleh sama dengan current password
+     * <p>Security notes:
+     * <ul>
+     *   <li>Revoking all refresh tokens on password change is standard banking practice.</li>
+     *   <li>The current password must be verified before any change is applied.</li>
+     * </ul>
+     *
+     * @param userId  ID of the authenticated user (extracted from the JWT)
+     * @param request contains the current password, new password, and confirmation
+     * @return empty {@link Mono} on success
      */
     public Mono<Void> changePassword(String userId, ChangePasswordRequest request) {
         return userRepository.findById(UUID.fromString(userId))
@@ -697,23 +841,36 @@ public class AuthService {
                     // UPDATE PASSWORD + REVOKE SEMUA REFRESH TOKEN
                     return userRepository.updatePassword(user.getId(), newPasswordHash, Instant.now())
                             .then(refreshTokenRepository.revokeAllUserTokens(user.getId(), Instant.now()))
+                            .then(eventPublisher.publish(
+                                    AuthEventType.PASSWORD_CHANGED,
+                                    user.getUserCode(),
+                                    maskEmail(user.getEmail()),
+                                    null, null, null
+                            ))
                             .doOnSuccess(v -> log.info("Password changed successfully. userCode={}", user.getUserCode()));
                 })
                 .as(transactionalOperator::transactional);
     }
 
     /**
-     * FORGOT PASSWORD - Kirim OTP reset password ke email.
+     * Sends a password-reset OTP to the given email address.
      *
-     * Flow:
-     * 1. Cek apakah email terdaftar
-     * 2. Generate OTP, simpan ke Redis (key: reset-otp:<email>, expiry: 3 menit)
-     * 3. Kirim OTP ke email
+     * <p>Flow:
+     * <ol>
+     *   <li>Look up the user by email</li>
+     *   <li>Generate a reset OTP and store it in Redis under the {@code reset-otp:<email>} key (TTL: 3 minutes)</li>
+     *   <li>Send the OTP via email</li>
+     * </ol>
      *
-     * Security notes:
-     * - Response SELALU success meskipun email tidak ditemukan
-     *   (prevent user enumeration — attacker tidak tau email mana yang terdaftar)
-     * - OTP expiry 3 menit, lebih pendek dari email verification
+     * <p>Security notes:
+     * <ul>
+     *   <li>Always returns success regardless of whether the email is registered (prevents user enumeration).</li>
+     *   <li>The reset OTP TTL (3 minutes) is shorter than the registration OTP TTL (5 minutes).</li>
+     *   <li>This endpoint is public — no authentication token required.</li>
+     * </ul>
+     *
+     * @param request contains the email address to send the reset OTP to
+     * @return empty {@link Mono} on completion
      */
     public Mono<Void> forgotPassword(ForgotPasswordRequest request) {
         return userRepository.findByEmail(request.getEmail())
@@ -730,19 +887,26 @@ public class AuthService {
     }
 
     /**
-     * RESET PASSWORD - Reset password pakai OTP dari email.
+     * Resets the user's password using the OTP received via email.
      *
-     * Flow:
-     * 1. Verify OTP dari Redis
-     * 2. Fetch user by email
-     * 3. Pastikan new password == confirm password
-     * 4. Pastikan new password != current password
-     * 5. Hash new password, update di DB
-     * 6. Revoke semua refresh token (force re-login semua device)
+     * <p>Flow:
+     * <ol>
+     *   <li>Verify the OTP from Redis (single-use — deleted immediately after verification)</li>
+     *   <li>Fetch the user by email</li>
+     *   <li>Reject if the confirmation password does not match the new password</li>
+     *   <li>Reject if the new password is the same as the current password</li>
+     *   <li>Hash and persist the new password</li>
+     *   <li>Revoke all active refresh tokens to force re-login on all devices</li>
+     * </ol>
      *
-     * Security notes:
-     * - OTP single-use, langsung dihapus setelah dicek
-     * - Semua refresh token di-revoke setelah reset password
+     * <p>Security notes:
+     * <ul>
+     *   <li>The OTP is deleted from Redis immediately after the verification attempt.</li>
+     *   <li>All refresh tokens are revoked after a successful reset.</li>
+     * </ul>
+     *
+     * @param request contains the email, the 6-digit OTP, the new password, and confirmation
+     * @return empty {@link Mono} on success
      */
     public Mono<Void> resetPassword(ResetPasswordRequest request) {
         return emailOtpService.verifyResetOtp(request.getEmail(), request.getOtpCode())
@@ -773,10 +937,55 @@ public class AuthService {
                     // UPDATE PASSWORD + REVOKE SEMUA REFRESH TOKEN
                     return userRepository.updatePassword(user.getId(), newPasswordHash, Instant.now())
                             .then(refreshTokenRepository.revokeAllUserTokens(user.getId(), Instant.now()))
+                            .then(eventPublisher.publish(
+                                    AuthEventType.PASSWORD_RESET,
+                                    user.getUserCode(),
+                                    maskEmail(user.getEmail()),
+                                    null, null, null
+                            ))
                             .doOnSuccess(v -> log.info("Password reset successfully. userCode={}", user.getUserCode()));
                 })
                 .as(transactionalOperator::transactional);
     }
 
+
+    // -------------------------------------------------------------------------
+    // PRIVATE HELPERS
+    // -------------------------------------------------------------------------
+
+    /**
+     * Masks an email address for safe inclusion in logs (PII protection).
+     *
+     * <p>Example: {@code koriebruh@gmail.com} → {@code k*******h@gmail.com}
+     *
+     * @param email the raw email address
+     * @return the masked email string
+     */
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        String[] parts = email.split("@");
+        String local = parts[0];
+        if (local.length() <= 2) return "**@" + parts[1];
+        return local.charAt(0) + "*".repeat(local.length() - 2) + local.charAt(local.length() - 1) + "@" + parts[1];
+    }
+
+
+    /**
+     * Computes the SHA-256 hash of the given token and returns it as a Base64-encoded string.
+     * Used to store and compare refresh tokens without persisting the plain-text value.
+     *
+     * @param token the plain-text token to hash
+     * @return Base64-encoded SHA-256 hash
+     * @throws RuntimeException if the SHA-256 algorithm is unavailable (should never happen on a standard JVM)
+     */
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash token", e);
+        }
+    }
 
 }
