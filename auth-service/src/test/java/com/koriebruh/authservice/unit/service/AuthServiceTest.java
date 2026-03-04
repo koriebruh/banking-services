@@ -326,6 +326,9 @@ class AuthServiceTest {
             when(jwtUtil.generateAccessToken(testUser)).thenReturn("access-token");
             when(jwtUtil.generateRefreshToken(testUser)).thenReturn("refresh-token");
             when(jwtUtil.getAccessTokenExpirationInSeconds()).thenReturn(900L);
+            when(jwtUtil.getRefreshTokenExpirationInSeconds()).thenReturn(604800L);
+            when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(Mono.just(RefreshToken.builder().build()));
+            when(userRepository.updateSuccessfulLogin(any(UUID.class), any(Instant.class))).thenReturn(Mono.empty());
             when(eventPublisher.publish(any(), anyString(), anyString(), anyString(), anyString(), any()))
                     .thenReturn(Mono.empty());
 

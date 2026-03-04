@@ -58,6 +58,33 @@ app:
     event:
       version: v1
 
+  rate-limit:
+    endpoints:
+      login:
+        max-requests: 5
+        window-seconds: 60
+      register:
+        max-requests: 3
+        window-seconds: 3600
+      verify-email:
+        max-requests: 5
+        window-seconds: 60
+      resend-verification:
+        max-requests: 3
+        window-seconds: 3600
+      forgot-password:
+        max-requests: 3
+        window-seconds: 3600
+      reset-password:
+        max-requests: 5
+        window-seconds: 60
+      mfa-validate:
+        max-requests: 5
+        window-seconds: 60
+      refresh:
+        max-requests: 10
+        window-seconds: 60
+
 springdoc:
   api-docs:
     path: /api-docs

@@ -321,48 +321,64 @@ public class AuthService {
 
                     // CHECK ACCOUNT LOCKED
                     if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
-                        log.warn("Login failed - account locked. userCode={}, lockedUntil={}, ip={}",
+                        log.warn("Login rejected – account locked. userCode={}, lockedUntil={}, ip={}",
                                 user.getUserCode(), user.getLockedUntil(), ipAddress);
                         return Mono.error(new UserExceptions.AccountLockedException(user.getLockedUntil()));
                     }
 
                     // VALIDATE PASSWORD
                     if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-                        log.warn("Login failed - wrong password. email={}, ip={}",
+                        log.warn("Login rejected – wrong password. email={}, ip={}",
                                 maskEmail(request.getEmail()), ipAddress);
                         return handleFailedLogin(user);
                     }
 
                     // VALIDATE STATUS
                     if (user.getStatus() != UserStatus.ACTIVE) {
-                        log.warn("Login failed - user not active. userCode={}, status={}, ip={}",
+                        log.warn("Login rejected – account not active. userCode={}, status={}, ip={}",
                                 user.getUserCode(), user.getStatus(), ipAddress);
                         return Mono.error(new UserExceptions.UnactivatedException());
                     }
 
                     // RESET FAILED LOGIN COUNTER ON SUCCESS
                     return userRepository.updateFailedLoginAttempts(user.getId(), (short) 0, Instant.now())
-                            .then(Mono.fromCallable(() -> {
-                                if (user.getMfaEnabled()) {
+                            .then(Mono.defer(() -> {
 
+                                if (user.getMfaEnabled()) {
+                                    // MFA enabled — issue short-lived MFA token only.
+                                    // Refresh token will be persisted after OTP validation at /mfa/validate.
                                     String mfaToken = jwtUtil.generateMfaToken(user);
 
-                                    return LoginResponse.builder()
+                                    return Mono.just(LoginResponse.builder()
                                             .mfaRequired(true)
                                             .mfaToken(mfaToken)
                                             .expiresIn(jwtUtil.getMfaTokenExpirationInSeconds())
-                                            .build();
+                                            .build());
+
                                 } else {
+                                    // MFA disabled — issue full token pair and persist refresh token immediately.
+                                    String accessToken      = jwtUtil.generateAccessToken(user);
+                                    String refreshToken     = jwtUtil.generateRefreshToken(user);
+                                    String refreshTokenHash = hashToken(refreshToken);
 
-                                    String accessToken = jwtUtil.generateAccessToken(user);
-                                    String refreshToken = jwtUtil.generateRefreshToken(user);
-
-                                    return LoginResponse.builder()
-                                            .mfaRequired(false)
-                                            .accessToken(accessToken)
-                                            .refreshToken(refreshToken)
-                                            .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
+                                    RefreshToken tokenEntity = RefreshToken.builder()
+                                            .userId(user.getId())
+                                            .tokenHash(refreshTokenHash)
+                                            .expiresAt(Instant.now().plusSeconds(
+                                                    jwtUtil.getRefreshTokenExpirationInSeconds()))
+                                            .revoked(false)
+                                            .ipAddress(ipAddress)
+                                            .userAgent(userAgent)
                                             .build();
+
+                                    return refreshTokenRepository.save(tokenEntity)
+                                            .then(userRepository.updateSuccessfulLogin(user.getId(), Instant.now()))
+                                            .thenReturn(LoginResponse.builder()
+                                                    .mfaRequired(false)
+                                                    .accessToken(accessToken)
+                                                    .refreshToken(refreshToken)
+                                                    .expiresIn(jwtUtil.getAccessTokenExpirationInSeconds())
+                                                    .build());
                                 }
                             }))
                             .flatMap(response ->
@@ -375,10 +391,8 @@ public class AuthService {
                             );
                 })
                 .doOnSuccess(response ->
-                        log.info("Login success. MFA required={}, email={}, ip={}",
-                                response.getMfaRequired(),
-                                maskEmail(request.getEmail()),
-                                ipAddress)
+                        log.info("Login successful. mfaRequired={}, email={}, ip={}",
+                                response.getMfaRequired(), maskEmail(request.getEmail()), ipAddress)
                 )
                 .doOnError(error ->
                         log.warn("Login failed. email={}, ip={}, reason={}",
@@ -386,7 +400,6 @@ public class AuthService {
                 )
                 .as(transactionalOperator::transactional);
     }
-
     /**
      * Handles a failed login attempt by incrementing the counter and locking the account
      * when the maximum number of consecutive failures is reached.
