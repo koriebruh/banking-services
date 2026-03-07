@@ -1,35 +1,35 @@
 
 #INTIALIZATION
-@host = http://localhost:8080
+@host = http://localhost:8081
 @correlationId = test-004
 
 
-### 1. EQUEST REGISTER
+### 1. REQUEST REGISTER
 POST {{host}}/api/v1/auth/register
 Content-Type: application/json
 Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "full_name": "Anindita Cahya Lestari",
-  "email": "anindita.lestari@example.com",
-  "password": "StrongPwd7@",
-  "phone_number": "082112345678",
-  "nik": "3578021203910009",
-  "address": "Jl. Ahmad Yani No. 10, Surabaya",
-  "date_of_birth": "1991-03-12"
+  "full_name": "Maya Kartika Sari",
+  "email": "maya.kartika.sari@example.com",
+  "password": "ValidPass4$",
+  "phone_number": "085612345670",
+  "nik": "3275012302940006",
+  "address": "Jl. Diponegoro No. 21, Yogyakarta",
+  "date_of_birth": "1994-02-23"
 }
 
 ###
-//{
-//  "full_name": "Maya Kartika Sari",
-//  "email": "maya.kartika.sari@example.com",
-//  "password": "ValidPass4$",
-//  "phone_number": "085612345670",
-//  "nik": "3275012302940006",
-//  "address": "Jl. Diponegoro No. 21, Yogyakarta",
-//  "date_of_birth": "1994-02-23"
-//}
+#{
+#  "full_name": "Anindita Cahya Lestari",
+#  "email": "anindita.lestari@example.com",
+#  "password": "StrongPwd7@",
+#  "phone_number": "082112345678",
+#  "nik": "3578021203910009",
+#  "address": "Jl. Ahmad Yani No. 10, Surabaya",
+#  "date_of_birth": "1991-03-12"
+#}
 
 
 ### 2. RESEND OTP CODE, FOR ACTIVATION ACCOUNT

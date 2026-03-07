@@ -1,11 +1,15 @@
 services:
+
+  # -----------------------------------------------------------------------
+  # KAFKA & KAFKA-UI
+  # -----------------------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.7.1
     container_name: kafka
     ports:
       - "9092:9092"
     networks:
-      - banking-network
+      - shared-network
     environment:
       # KRaft mode (no Zookeeper)
       KAFKA_NODE_ID: 1
@@ -40,7 +44,7 @@ services:
     ports:
       - "8090:8080"
     networks:
-      - banking-network
+      - shared-network
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -52,7 +56,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - banking-network
+      - shared-network
     entrypoint: [ "/bin/sh", "-c" ]
     command: |
       "
@@ -62,13 +66,16 @@ services:
       echo 'All topics created!'
       "
 
+  # -----------------------------------------------------------------------
+  # MONITORING STACK: PROMETHEUS, GRAFANA, JAEGER
+  # -----------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.53.2
     container_name: prometheus
     ports:
       - "9090:9090"
     networks:
-      - banking-network
+      - shared-network
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -91,7 +98,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - banking-network
+      - shared-network
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin123
@@ -114,7 +121,7 @@ services:
       - "4317:4317"    # OTLP gRPC
       - "4318:4318"    # OTLP HTTP
     networks:
-      - banking-network
+      - shared-network
     environment:
       COLLECTOR_OTLP_ENABLED: true
     healthcheck:
@@ -123,10 +130,13 @@ services:
       timeout: 5s
       retries: 3
 
+  # -------------------
+  # VOLUMES & NETWORKS
+  # -------------------
 networks:
-  banking-network:
+  shared-network:
     driver: bridge
-    name: banking-network
+    name: shared-network
 
 volumes:
   kafka_data:

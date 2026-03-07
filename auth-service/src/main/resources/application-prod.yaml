@@ -12,7 +12,7 @@ spring:
     property-naming-strategy: SNAKE_CASE
 
   mail:
-    host: localhost
+    host: auth-mailhog
     port: 1025
     #    USAGE FOR PRODUCTION (e.g., Gmail SMTP):
     #    username: your_email@gmail.com
@@ -25,7 +25,7 @@ spring:
             enable: false
 
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/auth_db
+    url: r2dbc:postgresql://auth-postgres:5432/auth_db
     username: auth_user
     password: ${DB_PASSWORD}
     pool:
@@ -35,7 +35,7 @@ spring:
       validation-query: SELECT 1
 
   flyway:
-    url: jdbc:postgresql://localhost:5432/auth_db
+    url: jdbc:postgresql://auth-postgres:5432/auth_db
     user: auth_user
     password: ${DB_PASSWORD}
     locations: classpath:db/migration
@@ -45,7 +45,7 @@ spring:
 
   data:
     redis:
-      host: localhost
+      host: auth-redis
       port: 6379
       password: ${REDIS_PASSWORD}
       lettuce:
@@ -56,7 +56,7 @@ spring:
           max-wait: 1000ms
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
@@ -118,11 +118,11 @@ app:
         max-requests: 10
         window-seconds: 60
 
-# CONFIGURATION FOR SPRINGDOC OPENAPI (SWAGGER) DOCUMENTATION
+# CONFIGURATION FOR SPRINGDOC OPENAPI (SWAGGER) DOCUMENTATION, real prod matikan
 springdoc:
   api-docs:
     path: /api-docs
-    enabled: false
+    enabled: true
   swagger-ui:
     path: /swagger-ui.html
     enabled: true

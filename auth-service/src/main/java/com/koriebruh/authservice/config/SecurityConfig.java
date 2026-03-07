@@ -34,6 +34,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/forgot-password").permitAll()
                         .pathMatchers("/api/v1/auth/reset-password").permitAll()
 
+                        // Health check
+                        .pathMatchers("/actuator/health").permitAll()
+                        .pathMatchers("/actuator/**").hasRole("ADMIN")
+
                         // swagger
                         .pathMatchers("/swagger-ui.html").permitAll()
                         .pathMatchers("/swagger-ui/**").permitAll()
