@@ -69,7 +69,7 @@ docker compose up -d
 **Steps:**
 
 ```bash
-# 1. Setup environment
+# 1. Setup environment, if not available
 cp .env.example .env
 ```
 

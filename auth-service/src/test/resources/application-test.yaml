@@ -53,10 +53,40 @@ spring:
 # JWT Configuration for tests
 app:
   jwt:
-    secret: test-secret-key-that-is-at-least-256-bits-long-for-hmac-sha256-algorithm
+    private-key: classpath:keys/private_pkcs8.pem
+    public-key: classpath:keys/public.pem
     access-token-expiration: 900000    # 15 minutes
     refresh-token-expiration: 604800000 # 7 days
     mfa-token-expiration: 300000       # 5 minutes
+  version: v1
+
+  # Rate limiting for tests
+  rate-limit:
+    endpoints:
+      login:
+        max-requests: 5
+        window-seconds: 60
+      register:
+        max-requests: 3
+        window-seconds: 3600
+      verify-email:
+        max-requests: 5
+        window-seconds: 60
+      resend-verification:
+        max-requests: 3
+        window-seconds: 3600
+      forgot-password:
+        max-requests: 3
+        window-seconds: 3600
+      reset-password:
+        max-requests: 5
+        window-seconds: 60
+      mfa-validate:
+        max-requests: 5
+        window-seconds: 60
+      refresh:
+        max-requests: 10
+        window-seconds: 60
 
 # Logging
 logging:

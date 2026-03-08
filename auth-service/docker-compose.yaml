@@ -13,10 +13,14 @@ services:
     env_file:
       - .env                         # ← otomatis load semua variable dari .env
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_R2DBC_PASSWORD: ${DB_PASSWORD}
       SPRING_FLYWAY_PASSWORD: ${DB_PASSWORD}
-      APP_JWT_SECRET: ${JWT_SECRET}
+      APP_JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      APP_JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - ./keys:/keys
     depends_on:
       auth-postgres:
         condition: service_healthy
@@ -65,7 +69,7 @@ services:
     container_name: auth-redis
     restart: unless-stopped
     ports:
-      - "6379"
+      - "6379:6379"
     env_file:
       - .env
     networks:

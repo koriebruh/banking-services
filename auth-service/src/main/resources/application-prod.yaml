@@ -56,9 +56,10 @@ spring:
           max-wait: 1000ms
 
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       retries: 3
       properties:
@@ -77,7 +78,8 @@ logging:
 app:
   # SECURITY CONFIGURATION
   jwt:
-    secret: ${JWT_SECRET}
+    private-key: ${JWT_PRIVATE_KEY}
+    public-key: ${JWT_PUBLIC_KEY}
     mfa-token-expiration: 300000        # 5 minutes (5 * 60 * 1000)
     access-token-expiration: 900000     # 15 minutes (15 * 60 * 1000)
     refresh-token-expiration: 604800000 # 7 days (7 * 24 * 60 * 60 * 1000)

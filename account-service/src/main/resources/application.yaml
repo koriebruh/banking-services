@@ -55,6 +55,8 @@ app:
     topic:
       account-events: account.events
       version: 1.0.0
+  jwt:
+    secret: mysecretkey
 
 # -----------------------------------------------------------------------
 # CONFIGURATION FOR SPRINGDOC OPENAPI (SWAGGER) DOCUMENTATION

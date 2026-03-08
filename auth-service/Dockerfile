@@ -20,6 +20,8 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 WORKDIR /app
 
+COPY src/main/resources/keys ./keys
+
 COPY --from=builder /build/target/*.jar app.jar
 COPY src/main/resources/application-prod.yaml application.yml
 
