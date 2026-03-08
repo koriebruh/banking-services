@@ -1,0 +1,66 @@
+services:
+  # -----------------------------------------------------------------------
+  # APPLICATION SERVICE
+  # -----------------------------------------------------------------------
+  account-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: account-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env                         # ← otomatis load semua variable dari .env
+    environment:
+      SPRING_R2DBC_PASSWORD: ${DB_PASSWORD}
+      SPRING_FLYWAY_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      account-postgres:
+        condition: service_healthy
+    networks:
+      - account-network
+      - shared-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+
+  # -----------------------------------------------------------------------
+  # POSTGRESQL
+  # -----------------------------------------------------------------------
+  account-postgres:
+    image: postgres:16-alpine
+    container_name: account-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    env_file:
+      - .env
+    networks:
+      - account-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -------------------
+  # VOLUMES & NETWORKS
+  # -------------------
+volumes:
+  postgres_data:
+
+networks:
+  account-network:
+    name: account-network
+    driver: bridge
+  shared-network:
+    external: true

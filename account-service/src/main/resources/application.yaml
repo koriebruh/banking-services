@@ -1,0 +1,85 @@
+server:
+  netty:
+    connection-timeout: 10s
+    idle-timeout: 60s
+  port: 8082
+
+# -----------------------------------------------------------------------
+# APPLICATION CONFIGURATION FOR ACCOUNT SERVICE
+# -----------------------------------------------------------------------
+spring:
+  application:
+    name: account-service
+    version: 1.0.0
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/account_db
+    username: account_user
+    password: korie123
+    pool:
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      validation-query: SELECT 1
+
+  flyway:
+    url: jdbc:postgresql://localhost:5433/account_db
+    user: account_user
+    password: korie123
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    enabled: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 1
+        enable.idempotence: true
+
+logging:
+  level:
+    root: WARN
+    com.koriebruh.authservice: INFO
+    org.springframework: WARN
+    io.r2dbc: WARN
+    org.flywaydb: INFO
+
+app:
+  kafka:
+    topic:
+      account-events: account.events
+      version: 1.0.0
+
+# -----------------------------------------------------------------------
+# CONFIGURATION FOR SPRINGDOC OPENAPI (SWAGGER) DOCUMENTATION
+# -----------------------------------------------------------------------
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: false
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+# -----------------------------------------------------------------------
+# CONFIGURATION FOR ACTUATOR METRICS AND HEALTH CHECKS
+# -----------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  info:
+    env:
+      enabled: false
