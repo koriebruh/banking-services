@@ -28,7 +28,22 @@
     </scm>
     <properties>
         <java.version>25</java.version>
+        <spring-grpc.version>1.0.2</spring-grpc.version>
+        <protobuf-java.version>4.33.4</protobuf-java.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.grpc</groupId>
+                <artifactId>spring-grpc-dependencies</artifactId>
+                <version>${spring-grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -67,6 +82,28 @@
             <artifactId>spring-jdbc</artifactId>
         </dependency>
 
+
+        <!-- GRPC SERVER        -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-services</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.grpc</groupId>
+            <artifactId>spring-grpc-server-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.grpc</groupId>
+            <artifactId>spring-grpc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+
         <!-- SWAGGER DOC-->
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -80,28 +117,24 @@
             <version>4.0.0</version>
         </dependency>
 
-
-<!--        &lt;!&ndash; gRPC &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>net.devh</groupId>-->
-<!--            <artifactId>grpc-server-spring-boot-starter</artifactId>-->
-<!--            <version>3.1.0</version>-->
-<!--        </dependency>-->
-
-<!--        &lt;!&ndash; Reactive gRPC &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>com.salesforce.servicelibs</groupId>-->
-<!--            <artifactId>reactor-grpc-stub</artifactId>-->
-<!--            <version>1.2.4</version>-->
-<!--        </dependency>-->
-
-<!--        &lt;!&ndash; Protobuf &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>com.google.protobuf</groupId>-->
-<!--            <artifactId>protobuf-java</artifactId>-->
-<!--            <version>3.25.3</version>-->
-<!--        </dependency>-->
-
+        <!-- JWT -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -157,6 +190,23 @@
 
     <build>
         <plugins>
+            <!-- FOR COMPILE PROTO TO JAVA  -->
+            <plugin>
+                <groupId>io.github.ascopes</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>5.0.1</version>
+                <configuration>
+                    <protoc>${protobuf-java.version}</protoc>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

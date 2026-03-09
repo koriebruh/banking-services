@@ -4,6 +4,10 @@ server:
     idle-timeout: 60s
   port: 8082
 
+grpc:
+  server:
+    port: 9090
+
 # -----------------------------------------------------------------------
 # APPLICATION CONFIGURATION FOR ACCOUNT SERVICE
 # -----------------------------------------------------------------------
@@ -56,7 +60,7 @@ app:
       account-events: account.events
       version: 1.0.0
   jwt:
-    secret: mysecretkey
+    public-key: classpath:keys/public.pem
 
 # -----------------------------------------------------------------------
 # CONFIGURATION FOR SPRINGDOC OPENAPI (SWAGGER) DOCUMENTATION
