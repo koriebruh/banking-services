@@ -10,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -24,15 +26,24 @@ class JwtUtilTest {
     private JwtUtil jwtUtil;
     private User testUser;
 
+    // RSA keys for testing - loaded from classpath
+    private static final Resource PRIVATE_KEY_RESOURCE = new ClassPathResource("keys/private_pkcs8.pem");
+    private static final Resource PUBLIC_KEY_RESOURCE = new ClassPathResource("keys/public.pem");
+
     @BeforeEach
     void setUp() {
         jwtUtil = new JwtUtil();
 
-        // Set values via reflection (simulating @Value injection)
-        ReflectionTestUtils.setField(jwtUtil, "secret", "my-super-secret-key-for-jwt-signing-at-least-256-bits-long");
+        // Set RSA key resources via reflection (simulating @Value injection)
+        ReflectionTestUtils.setField(jwtUtil, "privateKeyResource", PRIVATE_KEY_RESOURCE);
+        ReflectionTestUtils.setField(jwtUtil, "publicKeyResource", PUBLIC_KEY_RESOURCE);
         ReflectionTestUtils.setField(jwtUtil, "accessTokenExpiration", 900000L); // 15 minutes
         ReflectionTestUtils.setField(jwtUtil, "refreshTokenExpiration", 604800000L); // 7 days
         ReflectionTestUtils.setField(jwtUtil, "mfaTokenExpiration", 300000L); // 5 minutes
+
+        // Reset cached keys (in case previous test cached different keys)
+        ReflectionTestUtils.setField(jwtUtil, "cachedPrivateKey", null);
+        ReflectionTestUtils.setField(jwtUtil, "cachedPublicKey", null);
 
         // Create test user
         testUser = User.builder()
@@ -247,10 +258,13 @@ class JwtUtilTest {
         void shouldThrowExceptionForExpiredToken() {
             // Given - create JwtUtil with very short expiration
             JwtUtil shortExpiryJwtUtil = new JwtUtil();
-            ReflectionTestUtils.setField(shortExpiryJwtUtil, "secret", "my-super-secret-key-for-jwt-signing-at-least-256-bits-long");
+            ReflectionTestUtils.setField(shortExpiryJwtUtil, "privateKeyResource", PRIVATE_KEY_RESOURCE);
+            ReflectionTestUtils.setField(shortExpiryJwtUtil, "publicKeyResource", PUBLIC_KEY_RESOURCE);
             ReflectionTestUtils.setField(shortExpiryJwtUtil, "accessTokenExpiration", 1L); // 1ms
             ReflectionTestUtils.setField(shortExpiryJwtUtil, "refreshTokenExpiration", 1L);
             ReflectionTestUtils.setField(shortExpiryJwtUtil, "mfaTokenExpiration", 1L);
+            ReflectionTestUtils.setField(shortExpiryJwtUtil, "cachedPrivateKey", null);
+            ReflectionTestUtils.setField(shortExpiryJwtUtil, "cachedPublicKey", null);
 
             String token = shortExpiryJwtUtil.generateAccessToken(testUser);
 
