@@ -1,50 +1,83 @@
-# 🏦 Auth Service — Banking Authentication Microservice
+# Auth Service — Banking Authentication Microservice
 
-Production-grade authentication microservice for a banking platform built with **Spring Boot 4.x + WebFlux (reactive)**.
-
----
-
-## ✨ Features
-
-- 📧 Email OTP verification on registration
-- 🔐 Multi-Factor Authentication (TOTP / Google Authenticator)
-- 🎫 JWT authentication — access token + refresh token
-- 🔑 Password management (change, forgot, reset)
-- 🛡️ Redis sliding window rate limiting per IP per endpoint
-- 📨 Kafka event publishing for audit trail
-- 🔒 Account lockout after 5 consecutive failed login attempts
+Production-grade authentication microservice for a banking platform built with  **Spring Boot 4.0.3 + WebFlux (reactive)**.
+Handles the full authentication lifecycle registration, email verification,
+MFA (TOTP), JWT session management, and password recovery  with Redis-backed
+rate limiting and Kafka event publishing for audit trail.
 
 ---
 
-## 🛠️ Tech Stack
+## Features
 
-| Layer | Technology                                 |
-|---|--------------------------------------------|
-| Runtime | Java 25, Spring Boot 4.0.3                 |
-| Web | Spring WebFlux (reactive, non-blocking)    |
-| Database | PostgreSQL + R2DBC + Flyway                |
-| Cache / Rate Limit | Redis (Lettuce reactive)                   |
-| Messaging | Apache Kafka (KRaft mode)                  |
-| Security | Spring Security + JWT (JJWT 0.12.x) + TOTP |
-| Mail | JavaMail + Mailhog (dev)                   |
-| Docs | SpringDoc OpenAPI 3.x (Swagger UI)         |
-| Monitoring | Actuator + Prometheus + Grafana            |
+| | |
+|---|---|
+| 📧 | Email OTP verification on registration |
+| 🔐 | Multi-Factor Authentication (TOTP / Google Authenticator) |
+| 🎫 | JWT authentication — access token + refresh token |
+| 🔑 | Password management (change, forgot, reset) |
+| 🛡️ | Redis sliding-window rate limiting per IP per endpoint |
+| 📨 | Kafka event publishing for audit trail |
+| 🔒 | Account lockout after 5 consecutive failed login attempts |
 
 ---
 
-## 🚀 Running the Application
+## Tech Stack
 
-### 🐳 Docker (Recommended)
+| Layer | Technology |
+|---|---|
+| Runtime | Java 25, Spring Boot 4.0.3 |
+| Web | Spring WebFlux (reactive, non-blocking) |
+| Database | PostgreSQL · R2DBC · Flyway |
+| Cache / Rate Limiting | Redis (Lettuce reactive client) |
+| Messaging | Apache Kafka (KRaft mode) |
+| Security | Spring Security · JWT (JJWT 0.12.x) · TOTP |
+| Mail | JavaMail · Mailhog (dev) |
+| Docs | SpringDoc OpenAPI 3.x (Swagger UI) |
+| Monitoring | Actuator · Prometheus · Grafana |
 
-> ⚠️ **Start shared infrastructure first** — Kafka, Prometheus, Grafana, and Jaeger live in a separate compose file outside this directory.
+---
+
+## Authentication Flows
+
+Detailed flow diagrams are provided under `doc/` as a reference for frontend integration.
+
+### Flow 1 — Basic Access
+
+Registration through to token refresh.
+
+![Basic Access Flow](doc/pic1.png)
+
+---
+
+### Flow 2 — Session Management
+
+Logout, change password, and forgot/reset password.
+
+![Session Management Flow](doc/pic2.png)
+
+---
+
+### Flow 3 — MFA Setup & Login
+
+One-time TOTP setup and MFA-gated login.
+
+![MFA Setup & Authentication Flow](doc/pic3.png)
+
+---
+
+## Running the Application
+
+### Docker (Recommended)
+
+> ⚠️ Start the shared infrastructure first — Kafka, Prometheus, Grafana, and Jaeger are defined in a separate compose file outside this directory.
 
 ```bash
-# 1. Start shared infrastructure first
+# 1. Start shared infrastructure
 docker compose -f ../docker-compose.shared.yml up -d
 
-# 2. Setup environment
+# 2. Configure environment
 cp .env.example .env
-# Edit .env — fill in DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET
+# Edit .env — fill in DB_PASSWORD, REDIS_PASSWORD, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY
 
 # 3. Start auth-service
 docker compose up -d
@@ -54,9 +87,9 @@ docker compose up -d
 
 ---
 
-### 💻 Local (Without Docker)
+### Local (Without Docker)
 
-> ⚠️ **Prerequisites:** Make sure these services are installed and running locally.
+> ⚠️ Ensure the following services are installed and running locally before starting.
 
 | Service | Default Port |
 |---|---|
@@ -66,15 +99,13 @@ docker compose up -d
 | Mailhog SMTP | `1025` |
 | Mailhog Web UI | `8025` |
 
-**Steps:**
-
 ```bash
-# 1. Setup environment, if not available
+# 1. Copy environment file
 cp .env.example .env
 ```
 
 ```yaml
-# 2. Update src/main/resources/application.yaml to point to localhost
+# 2. Update src/main/resources/application.yaml to point at localhost
 spring:
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/auth_db
@@ -89,89 +120,17 @@ spring:
 
 ```bash
 # 3. Run
-./mvnw spring-boot:run        # Linux/Mac
+./mvnw spring-boot:run        # Linux / macOS
 .\mvnw spring-boot:run        # Windows
 ```
 
-Service runs at `http://localhost:8081` 🎉
+Service starts at `http://localhost:8081`.
 
 ---
 
-## 🧪 Running Tests
+## Running Tests
 
 ```bash
-./mvnw test           # Linux/Mac
+./mvnw test           # Linux / macOS
 .\mvnw test           # Windows
-```
-
----
-
-## 📡 API Endpoints
-
-Base URL: `http://localhost:8081/api/v1/auth`
-
-### 🔓 Public (no token required)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/register` | Register new user |
-| `POST` | `/login` | Login with email + password |
-| `POST` | `/verify-email` | Verify email with OTP |
-| `POST` | `/resend-verification` | Resend email verification OTP |
-| `POST` | `/forgot-password` | Request password reset OTP |
-| `POST` | `/reset-password` | Reset password using OTP |
-
-### 🔐 Protected (require `Authorization: Bearer <token>`)
-
-| Method | Endpoint | Token Type | Description |
-|---|---|---|---|
-| `POST` | `/mfa/setup` | Access Token | Generate QR code for Google Authenticator |
-| `POST` | `/mfa/setup/verify` | Access Token | Activate MFA with first OTP |
-| `POST` | `/mfa/validate` | MFA Token | Exchange MFA token + OTP → full token pair |
-| `POST` | `/refresh` | Refresh Token | Get new access token |
-| `POST` | `/logout` | Access Token | Revoke current session |
-| `POST` | `/change-password` | Access Token | Change password |
-
-### 🔄 Authentication Flow
-
-```
-# Without MFA
-POST /login → { access_token, refresh_token }
-
-# With MFA
-POST /login            → { mfa_token }
-POST /mfa/validate     → { access_token, refresh_token }
-
-# Refresh
-POST /refresh (refresh_token in Authorization header) → { access_token }
-```
-
----
-
-## 🔑 Environment Variables
-
-| Variable | Description |
-|---|---|
-| `DB_PASSWORD` | PostgreSQL password |
-| `REDIS_PASSWORD` | Redis password |
-| `JWT_SECRET` | JWT signing secret (min 64 hex chars / 256-bit) |
-
-> ⚠️ **Never commit `.env` to version control!** Make sure `.env` is in `.gitignore`.
-
----
-
-## 📁 Project Structure
-
-```
-src/main/java/com/koriebruh/authservice/
-├── 🔧 config/        # Security, Kafka, OpenAPI, RateLimit config
-├── 🎮 controller/    # AuthController
-├── 📦 dto/           # Request/Response DTOs, ApiResponse wrapper
-├── 🗃️  entity/        # R2DBC entities (User, RefreshToken)
-├── 📨 event/         # Kafka publisher, AuthEvent, AuthEventType
-├── ⚠️  exception/     # GlobalExceptions, UserExceptions
-├── 🔍 filter/        # JwtAuthenticationFilter, RateLimitFilter
-├── 🗄️  repository/    # UserRepository, RefreshTokenRepository
-├── ⚙️  service/       # AuthService, EmailService, OtpService, RateLimiterService
-└── 🛠️  util/          # JwtUtil
 ```
