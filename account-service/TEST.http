@@ -1,0 +1,22 @@
+
+
+
+@host =http://localhost:8082
+@correlationId = test-004
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjZmMxY2YxMC0wMzFmLTQ3ZjUtOTA5NC01ZmU0OTVjOTZkZmMiLCJpYXQiOjE3NzMxNTcwNjQsImV4cCI6MTc3MzE1Nzk2NH0.h9o4EBehHNusux4_dVUDouY-mPXOTB3ris-IcMUVTTy-wHgOuEuV1eiyBjeF3mPmUlEu1OxRMIygk5OuGGP-b7o1HEvYT9-3L8eruCSj18IvBfPBQ3TDHMZLO0pi7c1LXUPtAu4Rp-s3p2fjudrQg75qWbeN84aMcedLrsmuahagMx05ISP99LJx3rtNggKMx7S37TNaekucWxjlfSAha4CzrjnhJnVgmJRbNcrNGyLneAe-974Yn92Wngt4YPrUBGWg7994QHwbyuAEOV33xRFLvQ-7ej08QdoDlDbvVwsGb81jhxvoP61Ykki1s3R1JUTW1ms2h2H7AmwSpJn8Pw
+
+# =====================================================================
+### Opening New Account Type, [ SAVINGS, CURRENT, GIRO, DEPOSIT RDN ]
+# =====================================================================
+
+POST {{host}}/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "account_type": "SAVINGS"
+}
+
+

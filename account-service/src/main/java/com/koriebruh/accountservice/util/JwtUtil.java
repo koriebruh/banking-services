@@ -100,7 +100,7 @@ public class JwtUtil {
      * @param token raw JWT string (without "Bearer " prefix)
      * @return parsed Claims
      */
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getPublicKey())
                 .build()
