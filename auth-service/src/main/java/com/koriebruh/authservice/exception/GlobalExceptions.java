@@ -1,8 +1,8 @@
 package com.koriebruh.authservice.exception;
 
-
 import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.ApiResponseFactory;
+import com.koriebruh.authservice.filter.CorrelationIdFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,10 +11,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Slf4j
 @RestControllerAdvice
@@ -23,30 +22,22 @@ public class GlobalExceptions {
 
     private final ApiResponseFactory apiResponseFactory;
 
-    /**
-     * Handle all UserExceptions (business errors)
-     */
     @ExceptionHandler(UserExceptions.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public Mono<ApiResponse<Void>> handleUserExceptions(UserExceptions ex) {
-
+    public Mono<ApiResponse<Void>> handleUserExceptions(
+            UserExceptions ex,
+            ServerWebExchange exchange
+    ) {
         log.warn("Business exception occurred: {}", ex.getMessage());
-
-        return Mono.just(
-                apiResponseFactory.error(
-                        ex.getMessage(),
-                        generateCorrelationId()
-                )
-        );
+        return Mono.just(apiResponseFactory.error(ex.getMessage(), extractCorrelationId(exchange)));
     }
 
-    /**
-     * Handle validation errors (@Valid annotation failures)
-     * Contoh: otp_code bukan 6 digit, email format salah, dll
-     */
     @ExceptionHandler(WebExchangeBindException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Mono<ApiResponse<Void>> handleValidationException(WebExchangeBindException ex) {
+    public Mono<ApiResponse<Void>> handleValidationException(
+            WebExchangeBindException ex,
+            ServerWebExchange exchange
+    ) {
         String message = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -55,66 +46,49 @@ public class GlobalExceptions {
                 .orElse("Validation failed");
 
         log.warn("Validation failed: {}", message);
-        return Mono.just(apiResponseFactory.error(message, generateCorrelationId()));
+        return Mono.just(apiResponseFactory.error(message, extractCorrelationId(exchange)));
     }
 
-    /**
-     * Handle database constraint violations (race condition fallback)
-     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public Mono<ApiResponse<Void>> handleDatabaseConflict(
-            DataIntegrityViolationException ex
+            DataIntegrityViolationException ex,
+            ServerWebExchange exchange
     ) {
-
         log.error("Database constraint violation", ex);
-
-        return Mono.just(
-                apiResponseFactory.error(
-                        "Duplicate data detected",
-                        generateCorrelationId()
-                )
-        );
+        return Mono.just(apiResponseFactory.error("Duplicate data detected", extractCorrelationId(exchange)));
     }
 
-    /**
-     * Catch all unexpected errors
-     */
-    @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Mono<ApiResponse<Void>> handleGeneralException(Exception ex) {
-
-        log.error("Unexpected system error", ex);
-
-        return Mono.just(
-                apiResponseFactory.error(
-                        "Internal server error",
-                        generateCorrelationId()
-                )
-        );
-    }
-
-    /**
-     * Handle invalid JSON body — malformed JSON, missing quotes, dll
-     * Contoh: kirim refresh_token tanpa quotes, JSON tidak valid
-     */
     @ExceptionHandler(ServerWebInputException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Mono<ApiResponse<Void>> handleServerWebInputException(ServerWebInputException ex) {
+    public Mono<ApiResponse<Void>> handleServerWebInputException(
+            ServerWebInputException ex,
+            ServerWebExchange exchange
+    ) {
         log.warn("Invalid request body: {}", ex.getMessage());
-        return Mono.just(
-                apiResponseFactory.error(
-                        "Invalid request body. Please check your JSON format.",
-                        generateCorrelationId()
-                )
-        );
+        return Mono.just(apiResponseFactory.error(
+                "Invalid request body. Please check your JSON format.",
+                extractCorrelationId(exchange)
+        ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Mono<ApiResponse<Void>> handleGeneralException(
+            Exception ex,
+            ServerWebExchange exchange
+    ) {
+        log.error("Unexpected system error", ex);
+        return Mono.just(apiResponseFactory.error("Internal server error", extractCorrelationId(exchange)));
     }
 
     /**
-     * Temporary correlationId generator.
-     * In production, inject from WebFilter instead.
+     * Extracts X-Correlation-ID from request header.
+     * Returns null if not present — ApiResponseFactory handles null gracefully.
      */
-    private String generateCorrelationId() {
-        return UUID.randomUUID().toString();
+    private String extractCorrelationId(ServerWebExchange exchange) {
+        return exchange.getRequest()
+                .getHeaders()
+                .getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER);
     }
 }

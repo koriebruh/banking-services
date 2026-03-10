@@ -34,11 +34,6 @@ public class AuthController {
     private ApiResponseFactory apiResponseFactory;
 
 
-    public static String getOrGenerateCorrelationId(String correlationId) {
-        return correlationId != null ? correlationId : UUID.randomUUID().toString();
-    }
-
-
     @Operation(summary = "Register new user", description = "Register a new banking user account")
     @PostMapping(value = "/register",
             produces = MediaType.APPLICATION_JSON_VALUE,
@@ -46,18 +41,14 @@ public class AuthController {
     )
     public Mono<ApiResponse<RegisterResponse>> register(
             @RequestBody @Valid RegisterRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        // Generate fallback correlationId if not provided (should be rare, as clients should include it)
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
         return authService.registerUser(request)
-
-                // Transform service result into standardized API response
                 .map(registerResponse ->
                         apiResponseFactory.success(
                                 "User registered successfully",
                                 registerResponse,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -69,15 +60,14 @@ public class AuthController {
     )
     public Mono<ApiResponse<VerifyEmailOtpResponse>> verifyEmailOtp(
             @RequestBody @Valid VerifyEmailOtpRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
         return authService.verifyEmailOtp(request)
                 .map(verifyEmailOtpResponse ->
                         apiResponseFactory.success(
                                 "Email OTP verification successful",
                                 verifyEmailOtpResponse,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -89,15 +79,14 @@ public class AuthController {
     )
     public Mono<ApiResponse<Void>> resendVerification(
             @RequestBody @Valid ResendVerificationRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         return authService.resendVerification(request)
                 .thenReturn(apiResponseFactory.success(
                         "If your email is registered and not yet verified, a new verification code has been sent.",
                         null,
-                        finalCorrelationId
+                        correlationId
                 ));
     }
 
@@ -109,10 +98,9 @@ public class AuthController {
     )
     public Mono<ApiResponse<LoginResponse>> login(
             @RequestBody @Valid LoginRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId,
             ServerHttpRequest httpRequest
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         String ipAddress = httpRequest.getRemoteAddress() != null
                 ? httpRequest.getRemoteAddress().getAddress().getHostAddress()
@@ -125,7 +113,7 @@ public class AuthController {
                         apiResponseFactory.success(
                                 "Login successful",
                                 loginResponse,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -136,10 +124,8 @@ public class AuthController {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public Mono<ApiResponse<MfaSetupResponse>> setupMfa(
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
-
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
                 .flatMap(userId -> authService.setupMfa(userId))
@@ -147,7 +133,7 @@ public class AuthController {
                         apiResponseFactory.success(
                                 "MFA setup initiated. Please scan the QR code with Google Authenticator.",
                                 setupResponse,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -159,10 +145,8 @@ public class AuthController {
     )
     public Mono<ApiResponse<MfaSetupVerifyResponse>> verifyMfaSetup(
             @RequestBody @Valid MfaSetupVerifyRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
-
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
                 .flatMap(userId -> authService.verifyMfaSetup(userId, request))
@@ -170,7 +154,7 @@ public class AuthController {
                         apiResponseFactory.success(
                                 "MFA setup verified successfully.",
                                 response,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -182,11 +166,9 @@ public class AuthController {
     )
     public Mono<ApiResponse<MfaValidateResponse>> validateMfa(
             @RequestBody @Valid MfaValidateRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId,
             ServerHttpRequest httpRequest
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
-
         String ipAddress = httpRequest.getRemoteAddress() != null
                 ? httpRequest.getRemoteAddress().getAddress().getHostAddress()
                 : "UNKNOWN";
@@ -200,7 +182,7 @@ public class AuthController {
                         apiResponseFactory.success(
                                 "MFA validated successfully.",
                                 response,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -213,9 +195,8 @@ public class AuthController {
     )
     public Mono<ApiResponse<Void>> logout(
             @RequestBody @Valid LogoutRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
@@ -223,7 +204,7 @@ public class AuthController {
                 .thenReturn(apiResponseFactory.success(
                         "Logged out successfully.",
                         null,
-                        finalCorrelationId
+                        correlationId
                 ));
     }
 
@@ -233,11 +214,9 @@ public class AuthController {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public Mono<ApiResponse<RefreshTokenResponse>> refreshToken(
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId,
             @RequestHeader(name = "Authorization") String authorizationHeader // ← ambil dari header
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
-
         String rawRefreshToken = authorizationHeader.substring(7);
 
         return ReactiveSecurityContextHolder.getContext()
@@ -247,7 +226,7 @@ public class AuthController {
                         apiResponseFactory.success(
                                 "Token refreshed successfully.",
                                 response,
-                                finalCorrelationId
+                                correlationId
                         )
                 );
     }
@@ -259,9 +238,8 @@ public class AuthController {
     )
     public Mono<ApiResponse<Void>> changePassword(
             @RequestBody @Valid ChangePasswordRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getPrincipal().toString())
@@ -269,7 +247,7 @@ public class AuthController {
                 .thenReturn(apiResponseFactory.success(
                         "Password changed successfully. Please login again.",
                         null,
-                        finalCorrelationId
+                        correlationId
                 ));
     }
 
@@ -280,16 +258,15 @@ public class AuthController {
     )
     public Mono<ApiResponse<Void>> forgotPassword(
             @RequestBody @Valid ForgotPasswordRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         return authService.forgotPassword(request)
                 .thenReturn(apiResponseFactory.success(
                         // Pesan generic — tidak expose apakah email terdaftar
                         "If your email is registered, you will receive a password reset code.",
                         null,
-                        finalCorrelationId
+                        correlationId
                 ));
     }
 
@@ -301,15 +278,14 @@ public class AuthController {
     )
     public Mono<ApiResponse<Void>> resetPassword(
             @RequestBody @Valid ResetPasswordRequest request,
-            @RequestHeader(name = "X-Correlation-ID", required = false) String correlationId
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
     ) {
-        String finalCorrelationId = getOrGenerateCorrelationId(correlationId);
 
         return authService.resetPassword(request)
                 .thenReturn(apiResponseFactory.success(
                         "Password reset successfully. Please login with your new password.",
                         null,
-                        finalCorrelationId
+                        correlationId
                 ));
     }
 

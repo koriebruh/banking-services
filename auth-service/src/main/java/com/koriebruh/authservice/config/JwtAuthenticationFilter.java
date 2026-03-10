@@ -1,5 +1,8 @@
 package com.koriebruh.authservice.config;
 
+import com.koriebruh.authservice.dto.ApiResponse;
+import com.koriebruh.authservice.dto.ApiResponseFactory;
+import com.koriebruh.authservice.filter.CorrelationIdFilter;
 import com.koriebruh.authservice.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -7,8 +10,10 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -17,6 +22,7 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -26,13 +32,18 @@ import java.util.List;
 public class JwtAuthenticationFilter implements WebFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+
     private final JwtUtil jwtUtil;
+
+    private final ApiResponseFactory apiResponseFactory;
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        // Tidak ada token — pass through, Spring Security handle sendiri
+        // No token — pass through, Spring Security handles unauthenticated access
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             return chain.filter(exchange);
         }
@@ -44,9 +55,8 @@ public class JwtAuthenticationFilter implements WebFilter {
             Claims claims = jwtUtil.extractAllClaims(token);
             String tokenType = claims.get("type", String.class);
 
-            // ENFORCE TOKEN TYPE PER ENDPOINT
             if (!isTokenTypeAllowed(requestPath, tokenType)) {
-                log.warn("Token type mismatch. path={}, tokenType={}", requestPath, tokenType);
+                log.warn("[JwtAuthFilter] Token type mismatch. path={}, tokenType={}", requestPath, tokenType);
                 return rejectRequest(exchange, "Invalid token type for this endpoint");
             }
 
@@ -62,23 +72,22 @@ public class JwtAuthenticationFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            log.debug("JWT authenticated. userId={}, path={}, tokenType={}", userId, requestPath, tokenType);
+            log.debug("[JwtAuthFilter] Authenticated. userId={}, path={}, tokenType={}", userId, requestPath, tokenType);
 
-            // Inject ke ReactiveSecurityContext
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
 
         } catch (ExpiredJwtException e) {
-            log.warn("JWT expired. path={}", requestPath);
+            log.warn("[JwtAuthFilter] Token expired. path={}", requestPath);
             return rejectRequest(exchange, "Token has expired");
         } catch (SignatureException e) {
-            log.warn("JWT signature invalid. path={}", requestPath);
+            log.warn("[JwtAuthFilter] Invalid signature. path={}", requestPath);
             return rejectRequest(exchange, "Invalid token signature");
         } catch (MalformedJwtException e) {
-            log.warn("JWT malformed. path={}", requestPath);
+            log.warn("[JwtAuthFilter] Malformed token. path={}", requestPath);
             return rejectRequest(exchange, "Malformed token");
         } catch (Exception e) {
-            log.warn("JWT validation failed. path={}, reason={}", requestPath, e.getMessage());
+            log.warn("[JwtAuthFilter] Validation failed. path={}, reason={}", requestPath, e.getMessage());
             return rejectRequest(exchange, "Token validation failed");
         }
     }
@@ -91,28 +100,41 @@ public class JwtAuthenticationFilter implements WebFilter {
      * - semua lainnya      → accessToken (type = null)
      */
     private boolean isTokenTypeAllowed(String path, String tokenType) {
-        // mfa/validate → hanya mfaToken
         if (path.contains("/mfa/validate")) {
             return "mfa".equals(tokenType);
         }
-        // mfa/setup/** → accessToken
         if (path.contains("/mfa/setup")) {
             return tokenType == null;
         }
-        // refresh → refreshToken
         if (path.contains("/auth/refresh")) {
             return "refresh".equals(tokenType);
         }
-        // semua lainnya → accessToken
         return tokenType == null;
     }
 
-    private Mono<Void> rejectRequest(ServerWebExchange exchange, String reason) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        exchange.getResponse().getHeaders().add("Content-Type", "application/json");
-        byte[] body = ("{\"success\":false,\"message\":\"" + reason + "\"}").getBytes();
-        return exchange.getResponse().writeWith(
-                Mono.just(exchange.getResponse().bufferFactory().wrap(body))
-        );
+    /**
+     * Writes a structured 401 Unauthorized JSON response using {@link ApiResponseFactory}.
+     * Correlation ID is sourced from Reactor Context (injected by CorrelationIdFilter).
+     * Falls back to null if not present (e.g., if filter order is misconfigured).
+     */
+    private Mono<Void> rejectRequest(ServerWebExchange exchange, String message) {
+        String correlationId = exchange.getRequest()
+                .getHeaders()
+                .getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER);
+        try {
+            ApiResponse<Void> body = apiResponseFactory.error(message, correlationId);
+            byte[] bytes = objectMapper.writeValueAsBytes(body);
+            DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(bytes);
+
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+            return exchange.getResponse().writeWith(Mono.just(buffer));
+        } catch (Exception e) {
+            log.error("[JwtAuthFilter] Failed to serialize error response", e);
+            exchange.getResponse().setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
+            return exchange.getResponse().setComplete();
+        }
+
     }
 }
