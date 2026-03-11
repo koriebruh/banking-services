@@ -14,8 +14,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -61,9 +63,49 @@ public class AccountController {
                                 "Account opened successfully",
                                 response,
                                 correlationId
-                        ));
+                        )
+                );
     }
 
+
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<ApiResponse<List<AccountResponse>>> getMyAccounts(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId
+    ) {
+        String token = extractToken(authHeader);
+        UUID userId = jwtUtil.extractUserId(token);
+
+        return accountService.getMyAccounts(userId)
+                .collectList()
+                .map(accounts -> apiResponseFactory.success(
+                        "Accounts retrieved successfully",
+                        accounts,
+                        correlationId
+                ));
+    }
+
+    @GetMapping(
+            value = "/{accountNumber}",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<ApiResponse<AccountResponse>> getAccountDetail(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId,
+            @PathVariable String accountNumber
+    ) {
+        String token = extractToken(authHeader);
+        UUID userId = jwtUtil.extractUserId(token);
+
+        return accountService.getAccountDetail(accountNumber, userId)
+                .map(account -> apiResponseFactory.success(
+                        "Account detail retrieved successfully",
+                        account,
+                        correlationId
+                ));
+    }
 
     // -------------------------------------------------------------------------
     // Private helpers

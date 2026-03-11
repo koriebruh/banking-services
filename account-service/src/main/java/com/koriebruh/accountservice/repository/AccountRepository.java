@@ -33,13 +33,17 @@ public interface AccountRepository extends R2dbcRepository<Account, UUID> {
      */
     Mono<Boolean> existsByAccountNumber(String accountNumber);
 
-
     Mono<Boolean> existsByUserIdAndAccountTypeAndStatusIn(
             UUID userId,
             AccountType accountType,
             List<AccountStatus> statuses
-    );    /**
+    );
 
+    Flux<Account> findAllByUserId(UUID userId);
+
+    Mono<Account> findByAccountNumberAndUserId(String accountNumber, UUID userId);
+
+    /**
      * Find all accounts belonging to a user.
      */
     Flux<Account> findByUserId(UUID userId);
@@ -66,8 +70,8 @@ public interface AccountRepository extends R2dbcRepository<Account, UUID> {
      * Update account balance atomically with optimistic locking.
      * Returns affected rows count for verification.
      *
-     * @param id             Account UUID
-     * @param newBalance     New balance after transaction
+     * @param id              Account UUID
+     * @param newBalance      New balance after transaction
      * @param expectedBalance Expected current balance (for optimistic locking)
      * @return Number of rows updated (1 if successful, 0 if concurrent modification)
      */

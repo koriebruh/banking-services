@@ -4,7 +4,7 @@
 
 @host =http://localhost:8082
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjNDExMTVkMi1lODlmLTQyODAtYTY1Yy1lMjY5NTEwYzQ1NmYiLCJpYXQiOjE3NzMyMTI1NDAsImV4cCI6MTc3MzIxMzQ0MH0.fskdWiEX20h1dRwGbh71pfldO50lsiLLtkrY_tfuJ5CCOnZWzPPNKnhlVChFQJk9yGN0VjdESSf7PF9BJ4CswB5k13lZxge_dFwj5BM2cyZTL7l8ZVcW6UazIhFMTESARAuNI-m_Bpra6aU984wtmvM8IgRKxoRCd59HNnidO2CAtMMzl2Az3GVI822qy7Qrl1HrbXyPwJ-9o_h03nljY-ak8SGRuZ8nbYP_d2_MYvRANy0Tor457P3CIpfeUEJlb_YhQaISQM1qpvYJAmtvkrBFicnkxQNcX5pSoMGLJvs8Fi3-Qp1Awj_rc3_BBbv2sqmwdCbxD0lJqe9uHNrSmg
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJkYjhiMTA4ZC00ZGE2LTRlZjktYTRmOS1iODkxNTVlZDNkMTkiLCJpYXQiOjE3NzMyMjAwNDIsImV4cCI6MTc3MzIyMDk0Mn0.Uw_oTJOyiRxykaMEHQCzUdQ8cV1wflXuUjZygNshPw2YInc1VRzlgsJChn1mNLJr7aiJMOpIuRlG3erujN_adiJA72J0G5rCEofrnElaZjUJuT_rsanFrmU0he--zS3OpHdtjBlTml7WOJ0GpvhdBZJTYcG3G8W0YTgyLuBR2acQDFC4WRBLQpQusDhdSeAAsMkNP8HZhDlG15WMpySo74Pg46N_TCrMsAzIR40-zhmPOf8_Zsb3sbz-ag6nXTf7pOioYMSYW7uo_HNinXqctlB5aUkKK7cSG4N-GNuZkT_Pv6kaQ3nxTvz9CDd59UPRnTjbSFtOODFeIFxcUHHlnw
 
 ### NEW SAVINGS
 POST {{host}}/api/v1/accounts
@@ -45,7 +45,6 @@ Authorization: Bearer {{accessToken}}
   }
 }
 
-
 ### RDN
 POST {{host}}/api/v1/accounts
 Accept: application/json
@@ -62,7 +61,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### LIST MY ACCOUNT ───────────────────────────────────────────────────────────────
-POST {{host}}/api/v1/accounts
+GET {{host}}/api/v1/accounts
 Accept: application/json
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}
@@ -70,9 +69,9 @@ Authorization: Bearer {{accessToken}}
 
 
 ### GET DETAIL ACCOUNT BY ACCOUNT NUM  ────────────────────────────────────────────
-@accountNum =
+@accountNum = 1187886263
 
-POST {{host}}/api/v1/accounts/{{accountNum}}
+GET {{host}}/api/v1/accounts/{{accountNum}}
 Accept: application/json
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}

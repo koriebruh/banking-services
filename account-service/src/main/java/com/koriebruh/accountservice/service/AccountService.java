@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -59,21 +60,19 @@ public class AccountService {
      *
      * <p><b>Flow:</b>
      * <ol>
-     *   <li>Validate type-specific fields (DEPOSIT requires depositDetail, RDN requires rdnDetail).</li>
-     *   <li>Check if user already has an ACTIVE or FROZEN account of the same type — reject if exists.</li>
+     *   <li>Validate type-specific fields.</li>
+     *   <li>Check if user already has ACTIVE/FROZEN account of same type.</li>
      *   <li>Generate unique 10-digit account number (max 5 retries).</li>
      *   <li>Save account entity.</li>
      *   <li>If DEPOSIT — save deposit_detail.</li>
      *   <li>If RDN — validate SID uniqueness and save rdn_detail.</li>
-     *   <li>Publish ACCOUNT_OPENED event to Kafka (fire-and-forget, failures are logged only).</li>
+     *   <li>Publish ACCOUNT_OPENED event to Kafka (fire-and-forget).</li>
      * </ol>
      *
      * <p><b>Security:</b> userId extracted from JWT principal — never from request body.
      *
-     * <p><b>Consistency:</b> Entire operation runs in a reactive transaction.
-     * If saveTypeSpecificDetail fails, the account insert is rolled back.
-     * DB-level UNIQUE constraints on (user_id, account_type) and (sid) serve as
-     * last-line-of-defense against race conditions.
+     * <p><b>Consistency:</b> Entire operation is wrapped in a reactive transaction.
+     * If saveTypeSpecificDetail fails, account insert is rolled back.
      *
      * @param request  validated open account request
      * @param userId   authenticated user ID from JWT
@@ -82,70 +81,94 @@ public class AccountService {
      */
     @Transactional
     public Mono<AccountResponse> openAccount(OpenAccountRequest request, UUID userId, String userCode) {
-        // VALIDATE TYPE-SPECIFIC FIELDS BEFORE ANY DB OPERATION
+        // VALIDATE TYPE-SPECIFIC FIELDS
         return validateTypeSpecificRequest(request)
-                // CHECK FOR EXISTING ACTIVE/FROZEN ACCOUNT
+                // CHECK ACCOUNT TYPE DUPLICATION
                 .then(accountRepository.existsByUserIdAndAccountTypeAndStatusIn(
                         userId,
                         request.getAccountType(),
                         List.of(AccountStatus.ACTIVE, AccountStatus.FROZEN)
-                )).flatMap(exists -> {
-                    if (exists) {
-                        return Mono.error(new AccountExceptions.AccountTypeAlreadyExistsException(
-                                request.getAccountType().name()
-                        ));
-                    }
-                    return Mono.empty();
-                })
-                // CREATE ACCOUNT ENTITY
+                ))
+                .flatMap(exists -> exists
+                        ? Mono.error(new AccountExceptions.AccountTypeAlreadyExistsException(
+                        request.getAccountType().name()))
+                        : Mono.empty()
+                )
+                // GEN UNIQUE ACCOUNT NUMBER
                 .then(generateUniqueAccountNumber(0))
-                .flatMap(accountNumber -> {
-                    Account account = Account.builder()
-                            .accountNumber(accountNumber)
-                            .userId(userId)
-                            .accountType(request.getAccountType())
-                            .balance(initialBalance(request))
-                            .currency("IDR")
-                            .status(AccountStatus.ACTIVE)
-                            .build();
-                    return accountRepository.save(account);
-                })
+                .flatMap(accountNumber -> accountRepository.save(
+                        Account.builder()
+                                .accountNumber(accountNumber)
+                                .userId(userId)
+                                .accountType(request.getAccountType())
+                                .balance(initialBalance(request))
+                                .currency("IDR")
+                                .status(AccountStatus.ACTIVE)
+                                .build()
+                ))
+                // SAVE TYPE-SPECIFIC DETAIL
                 .flatMap(saved -> saveTypeSpecificDetail(saved, request).thenReturn(saved))
                 .flatMap(this::buildAccountResponse)
-                // PUBLISH EVENT AFTER SUCCESSFUL CREATION — fire-and-forget, log any failure
-                .doOnSuccess(response -> eventPublisher.publish(
-                        AccountEventType.ACCOUNT_OPENED,
-                        userCode,
-                        response.getAccountNumber(),
-                        response.getAccountType(),
-                        Map.of("currency", "IDR")
-                ).subscribe(
-                        null,
-                        err -> log.error("[AccountService] Failed to publish ACCOUNT_OPENED event. " +
-                                "accountNumber={}", response.getAccountNumber(), err)
-                ))
-                // HANDLE UNIQUE CONSTRAINT VIOLATION (EITHER ACCOUNT NUMBER OR RDN SID)
+                // PUBLISH ACCOUNT_OPENED EVENT (non-blocking, log errors but don't fail the flow)
+                .flatMap(response -> eventPublisher.publish(
+                                AccountEventType.ACCOUNT_OPENED,
+                                userCode,
+                                response.getAccountNumber(),
+                                response.getAccountType(),
+                                Map.of("currency", "IDR")
+                        ).thenReturn(response)
+                        .onErrorResume(err -> {
+                            log.error("[AccountService] Failed to publish ACCOUNT_OPENED event. accountNumber={}",
+                                    response.getAccountNumber(), err);
+                            return Mono.just(response);
+                        }))
+                // HANDLE DB CONSTRAINT VIOLATIONS FOR DUPLICATE SID OR ACCOUNT TYPE
                 .onErrorMap(DataIntegrityViolationException.class, ex -> {
                     String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
-
                     if (msg.contains("uq_rdn_sid")) {
                         log.warn("[AccountService] Duplicate SID via DB constraint. userId={}", userId);
-                        return new AccountExceptions.DuplicateSidException(request.getRdnDetail().getSid());
+                        return new AccountExceptions.DuplicateSidException(
+                                request.getRdnDetail().getSid());
                     }
-
                     log.warn("[AccountService] Duplicate account type via DB constraint. userId={}, type={}",
                             userId, request.getAccountType());
                     return new AccountExceptions.AccountTypeAlreadyExistsException(
-                            request.getAccountType().name()
-                    );
+                            request.getAccountType().name());
                 })
-                .doOnSuccess(r -> log.info("[AccountService] Account opened. " +
-                        "accountNumber={}, type={}, userId={}", r.getAccountNumber(), r.getAccountType(), userId));
+                .doOnSuccess(r -> log.info("[AccountService] Account opened. accountNumber={}, type={}, userId={}",
+                        r.getAccountNumber(), r.getAccountType(), userId));
     }
 
-    // OPEN NEW ACCOUNT
 
-    // LIST ALL ACCOUNTS
+    /**
+     * Returns a summary list of all accounts owned by the user.
+     * Detail-specific fields (deposit_detail, rdn_detail) are excluded — use getAccountDetail for full info.
+     */
+    public Flux<AccountResponse> getMyAccounts(UUID userId) {
+        return accountRepository.findAllByUserId(userId)
+                .map(account -> AccountResponse.builder()
+                        .accountNumber(account.getAccountNumber())
+                        .accountType(account.getAccountType().name())
+                        .balance(account.getBalance())
+                        .currency(account.getCurrency())
+                        .status(account.getStatus().name())
+                        .createdAt(account.getCreatedAt())
+                        .build())
+                .doOnComplete(() -> log.debug("Listed accounts for userId={}", userId));
+    }
+
+    /**
+     * Returns full account detail including type-specific fields (deposit_detail or rdn_detail).
+     * Throws {@link AccountExceptions.AccountNotFoundException} if account not found or does not belong to user.
+     */
+    public Mono<AccountResponse> getAccountDetail(String accountNumber, UUID userId) {
+        return accountRepository.findByAccountNumberAndUserId(accountNumber, userId)
+                .switchIfEmpty(Mono.error(new AccountExceptions.AccountNotFoundException(accountNumber)))
+                .flatMap(this::buildAccountResponse)
+                .doOnSuccess(r -> log.debug("Account detail fetched. accountNumber={}, userId={}", accountNumber, userId));
+    }
+
+
 
     // DETAILS FOR ONE ACCOUNT
 
