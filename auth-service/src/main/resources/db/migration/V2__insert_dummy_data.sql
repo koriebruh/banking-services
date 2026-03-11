@@ -1,51 +1,58 @@
--- Insert dummy data for testing
--- Password: Test@1234 (BCrypt hashed)
+-- =====================================================
+-- Seed initial system users
+-- Password plaintext: Test@1234
+-- Hash: BCrypt (cost 10)
+-- =====================================================
 
--- Customer User
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status, email_verified)
-VALUES (
-    'CUST001',
-    'Budi Santoso',
-    'budi.santoso@example.com',
-    '08123456789',
-    '$2a$10$dXJ3SW6G7P50eS6DmwzkCOYz6TtxMQJqhN8/LewY5YmMxSL0S7jey', -- Test@1234
-    '1234567890123456',
-    'Jl. Merdeka No. 123, Jakarta',
-    '1990-05-15',
-    'CUSTOMER',
-    'ACTIVE',
-    TRUE
+-- ADMIN
+INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+                   email_verified)
+SELECT 'ADMIN001',
+       'System Administrator',
+       'admin@bank.local',
+       '08000000001',
+       '$2a$10$FMbZSNfnmr3JNS/k9qBLkuduh2cn16HLXoYUfDTPQIBi8/ZdOoe0q',
+       '0000000000000001',
+       'System Internal',
+       '1980-01-01',
+       'ADMIN',
+       'ACTIVE',
+       TRUE WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'admin@bank.local'
 );
 
--- Admin User
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status, email_verified)
-VALUES (
-    'ADMIN001',
-    'Siti Nurhaliza',
-    'siti.admin@example.com',
-    '08234567890',
-    '$2a$10$dXJ3SW6G7P50eS6DmwzkCOYz6TtxMQJqhN8/LewY5YmMxSL0S7jey', -- Test@1234
-    '2345678901234567',
-    'Jl. Sudirman No. 456, Jakarta',
-    '1988-03-20',
-    'ADMIN',
-    'ACTIVE',
-    TRUE
+
+-- TELLER
+INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+                   email_verified)
+SELECT 'TELLER001',
+       'Default Teller',
+       'teller@bank.local',
+       '08000000002',
+       '$2a$10$IYmboxBQpCB2b1sR.oNFqeBC7ldsriilLefoW5Ja5jk40yhrYyfem',
+       '0000000000000002',
+       'System Internal',
+       '1990-01-01',
+       'TELLER',
+       'ACTIVE',
+       TRUE WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'teller@bank.local'
 );
 
--- Teller User
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status, email_verified)
-VALUES (
-    'TELLER001',
-    'Ahmad Wijaya',
-    'ahmad.teller@example.com',
-    '08345678901',
-    '$2a$10$dXJ3SW6G7P50eS6DmwzkCOYz6TtxMQJqhN8/LewY5YmMxSL0S7jey', -- Test@1234
-    '3456789012345678',
-    'Jl. Gatot Subroto No. 789, Jakarta',
-    '1992-07-10',
-    'TELLER',
-    'ACTIVE',
-    TRUE
-);
 
+-- CUSTOMER (dummy testing user)
+INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+                   email_verified)
+SELECT 'USR-DEMO-1',
+       'Maya Kartika Sari',
+       'maya.kartika.sari@example.com',
+       '08000000003',
+       '$2a$10$u9lWFH7VYCLT91Xm01U4r.mxI5sbuJkK/sbX8NLZ.lDtS16/2Gc5m',
+       '0000000000000003',
+       'Test Address',
+       '1995-01-01',
+       'CUSTOMER',
+       'ACTIVE',
+       TRUE WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'customer@bank.local'
+);
