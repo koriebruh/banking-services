@@ -59,6 +59,12 @@ public class AccountExceptions extends RuntimeException {
         }
     }
 
+    public static class AccountTypeAlreadyExistsException extends AccountExceptions {
+        public AccountTypeAlreadyExistsException(String accountType) {
+            super("Account type already exists for user: " + accountType);
+        }
+    }
+
     /**
      * Thrown when a customer tries to open an RDN account with a SID
      * that is already registered to another account.
@@ -116,4 +122,19 @@ public class AccountExceptions extends RuntimeException {
             super("Access denied");
         }
     }
+
+    // -------------------------------------------------------------------------
+    // 500 — Internal
+    // -------------------------------------------------------------------------
+
+    /**
+     * Thrown when account number generation fails after maximum retry attempts.
+     * Indicates a systemic issue — should trigger alerting in production.
+     */
+    public static class AccountNumberGenerationException extends AccountExceptions {
+        public AccountNumberGenerationException(int retryCount) {
+            super("Failed to generate unique account number after" + retryCount + " attempts");
+        }
+    }
+
 }

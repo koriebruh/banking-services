@@ -5,27 +5,35 @@
 -- -----------------------------------------------------------------------------
 -- STEP 1: Drop default values yang terikat ke enum type
 -- -----------------------------------------------------------------------------
-ALTER TABLE account ALTER COLUMN status DROP DEFAULT;
-ALTER TABLE deposit_detail ALTER COLUMN interest_payout DROP DEFAULT;
+ALTER TABLE account
+    ALTER COLUMN status DROP DEFAULT;
+ALTER TABLE deposit_detail
+    ALTER COLUMN interest_payout DROP DEFAULT;
 
 -- -----------------------------------------------------------------------------
 -- STEP 2: Convert kolom ke VARCHAR
 -- -----------------------------------------------------------------------------
 ALTER TABLE account
-ALTER COLUMN account_type TYPE VARCHAR(20),
-    ALTER COLUMN status TYPE VARCHAR(20);
+ALTER
+COLUMN account_type TYPE VARCHAR(20),
+    ALTER
+COLUMN status TYPE VARCHAR(20);
 
 ALTER TABLE deposit_detail
-ALTER COLUMN interest_payout TYPE VARCHAR(20);
+ALTER
+COLUMN interest_payout TYPE VARCHAR(20);
 
 ALTER TABLE account_transaction
-ALTER COLUMN type TYPE VARCHAR(20);
+ALTER
+COLUMN type TYPE VARCHAR(20);
 
 -- -----------------------------------------------------------------------------
 -- STEP 3: Restore default values (sekarang sebagai plain string)
 -- -----------------------------------------------------------------------------
-ALTER TABLE account ALTER COLUMN status SET DEFAULT 'ACTIVE';
-ALTER TABLE deposit_detail ALTER COLUMN interest_payout SET DEFAULT 'END_OF_TERM';
+ALTER TABLE account
+    ALTER COLUMN status SET DEFAULT 'ACTIVE';
+ALTER TABLE deposit_detail
+    ALTER COLUMN interest_payout SET DEFAULT 'END_OF_TERM';
 
 -- -----------------------------------------------------------------------------
 -- STEP 4: Add CHECK constraints
@@ -43,6 +51,15 @@ ALTER TABLE deposit_detail
 ALTER TABLE account_transaction
     ADD CONSTRAINT chk_transaction_type
         CHECK (type IN ('CREDIT', 'DEBIT'));
+
+
+-- CONSTRAINT tambahan untuk memastikan tidak ada duplikasi account_type per user_id
+ALTER TABLE account
+    ADD CONSTRAINT uq_user_account_type UNIQUE (user_id, account_type);
+
+ALTER TABLE rdn_detail
+DROP CONSTRAINT IF EXISTS rdn_detail_sid_key,
+    ADD CONSTRAINT uq_rdn_sid UNIQUE (sid);
 
 -- -----------------------------------------------------------------------------
 -- STEP 5: Drop enum types (aman setelah semua dependency dilepas)

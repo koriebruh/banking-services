@@ -1,14 +1,12 @@
-
-
+# ────────────────────────────────────────────────────────────────────────────────
+###  OPENING NEW ACCOUNT FOR USER, [ SAVINGS, CURRENT, GIRO, DEPOSIT RDN ]
+# ────────────────────────────────────────────────────────────────────────────────
 
 @host =http://localhost:8082
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjZmMxY2YxMC0wMzFmLTQ3ZjUtOTA5NC01ZmU0OTVjOTZkZmMiLCJpYXQiOjE3NzMxNTcwNjQsImV4cCI6MTc3MzE1Nzk2NH0.h9o4EBehHNusux4_dVUDouY-mPXOTB3ris-IcMUVTTy-wHgOuEuV1eiyBjeF3mPmUlEu1OxRMIygk5OuGGP-b7o1HEvYT9-3L8eruCSj18IvBfPBQ3TDHMZLO0pi7c1LXUPtAu4Rp-s3p2fjudrQg75qWbeN84aMcedLrsmuahagMx05ISP99LJx3rtNggKMx7S37TNaekucWxjlfSAha4CzrjnhJnVgmJRbNcrNGyLneAe-974Yn92Wngt4YPrUBGWg7994QHwbyuAEOV33xRFLvQ-7ej08QdoDlDbvVwsGb81jhxvoP61Ykki1s3R1JUTW1ms2h2H7AmwSpJn8Pw
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJjNDExMTVkMi1lODlmLTQyODAtYTY1Yy1lMjY5NTEwYzQ1NmYiLCJpYXQiOjE3NzMyMTI1NDAsImV4cCI6MTc3MzIxMzQ0MH0.fskdWiEX20h1dRwGbh71pfldO50lsiLLtkrY_tfuJ5CCOnZWzPPNKnhlVChFQJk9yGN0VjdESSf7PF9BJ4CswB5k13lZxge_dFwj5BM2cyZTL7l8ZVcW6UazIhFMTESARAuNI-m_Bpra6aU984wtmvM8IgRKxoRCd59HNnidO2CAtMMzl2Az3GVI822qy7Qrl1HrbXyPwJ-9o_h03nljY-ak8SGRuZ8nbYP_d2_MYvRANy0Tor457P3CIpfeUEJlb_YhQaISQM1qpvYJAmtvkrBFicnkxQNcX5pSoMGLJvs8Fi3-Qp1Awj_rc3_BBbv2sqmwdCbxD0lJqe9uHNrSmg
 
-# =====================================================================
-### Opening New Account Type, [ SAVINGS, CURRENT, GIRO, DEPOSIT RDN ]
-# =====================================================================
-
+### NEW SAVINGS
 POST {{host}}/api/v1/accounts
 Accept: application/json
 Content-Type: application/json
@@ -19,4 +17,91 @@ Authorization: Bearer {{accessToken}}
   "account_type": "SAVINGS"
 }
 
+### NEW CURRENT AKA GIRO
+POST {{host}}/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
 
+{
+  "account_type": "CURRENT"
+}
+
+### DEPOSIT
+POST {{host}}/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "account_type": "DEPOSIT",
+  "deposit_detail": {
+    "principal_amount": 500000000,
+    "tenor_months": 12,
+    "interest_payout": "MONTHLY",
+    "auto_rollover": false
+  }
+}
+
+
+### RDN
+POST {{host}}/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "account_type": "RDN",
+  "rdn_detail": {
+    "sid": "IDD123456789011",
+    "securities_company": "PT Mandiri Sekuritas"
+  }
+}
+
+### LIST MY ACCOUNT ───────────────────────────────────────────────────────────────
+POST {{host}}/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+
+### GET DETAIL ACCOUNT BY ACCOUNT NUM  ────────────────────────────────────────────
+@accountNum =
+
+POST {{host}}/api/v1/accounts/{{accountNum}}
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+
+### FREEZE ACCOUNT (ADMIN ONLY) BY ACC NUM  ───────────────────────────────────────
+@accountNumberTarget =
+
+PATCH {{host}}/api/v1/accounts/{{accountNumberTarget}}/status
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+
+### LIST MUTATION TRASACTION  ─────────────────────────────────────────────────────
+POST {{host}}/api/v1/accounts/{{accountNum}}/transactions
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+
+### DETAIL HISOTRY TRASACTION BY ID ────────────────────────────────────────────────
+@id =
+
+POST {{host}}/api/v1/accounts/{{accountNum}}/transactions/{id}
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}

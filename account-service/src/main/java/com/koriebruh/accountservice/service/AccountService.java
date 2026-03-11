@@ -17,13 +17,16 @@ import com.koriebruh.accountservice.repository.DepositDetailRepository;
 import com.koriebruh.accountservice.repository.RdnDetailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,32 +47,58 @@ public class AccountService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    private static final int MAX_ACCOUNT_NUMBER_RETRY = 5;
+
 
     // -------------------------------------------------------------------------
     // ACCOUNT MANAGEMENT
     // -------------------------------------------------------------------------
+
     /**
      * Opens a new bank account for the authenticated user.
      *
      * <p><b>Flow:</b>
      * <ol>
-     *   <li>Generate unique 10-digit account number.</li>
+     *   <li>Validate type-specific fields (DEPOSIT requires depositDetail, RDN requires rdnDetail).</li>
+     *   <li>Check if user already has an ACTIVE or FROZEN account of the same type — reject if exists.</li>
+     *   <li>Generate unique 10-digit account number (max 5 retries).</li>
      *   <li>Save account entity.</li>
-     *   <li>If DEPOSIT — validate and save deposit_detail.</li>
+     *   <li>If DEPOSIT — save deposit_detail.</li>
      *   <li>If RDN — validate SID uniqueness and save rdn_detail.</li>
-     *   <li>Publish ACCOUNT_OPENED event to Kafka (fire-and-forget).</li>
+     *   <li>Publish ACCOUNT_OPENED event to Kafka (fire-and-forget, failures are logged only).</li>
      * </ol>
      *
      * <p><b>Security:</b> userId extracted from JWT principal — never from request body.
+     *
+     * <p><b>Consistency:</b> Entire operation runs in a reactive transaction.
+     * If saveTypeSpecificDetail fails, the account insert is rolled back.
+     * DB-level UNIQUE constraints on (user_id, account_type) and (sid) serve as
+     * last-line-of-defense against race conditions.
      *
      * @param request  validated open account request
      * @param userId   authenticated user ID from JWT
      * @param userCode business user identifier from JWT, used for Kafka event
      * @return account response with type-specific detail
      */
+    @Transactional
     public Mono<AccountResponse> openAccount(OpenAccountRequest request, UUID userId, String userCode) {
+        // VALIDATE TYPE-SPECIFIC FIELDS BEFORE ANY DB OPERATION
         return validateTypeSpecificRequest(request)
-                .then(generateUniqueAccountNumber())
+                // CHECK FOR EXISTING ACTIVE/FROZEN ACCOUNT
+                .then(accountRepository.existsByUserIdAndAccountTypeAndStatusIn(
+                        userId,
+                        request.getAccountType(),
+                        List.of(AccountStatus.ACTIVE, AccountStatus.FROZEN)
+                )).flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new AccountExceptions.AccountTypeAlreadyExistsException(
+                                request.getAccountType().name()
+                        ));
+                    }
+                    return Mono.empty();
+                })
+                // CREATE ACCOUNT ENTITY
+                .then(generateUniqueAccountNumber(0))
                 .flatMap(accountNumber -> {
                     Account account = Account.builder()
                             .accountNumber(accountNumber)
@@ -81,18 +110,37 @@ public class AccountService {
                             .build();
                     return accountRepository.save(account);
                 })
-                .flatMap(saved -> saveTypeSpecificDetail(saved, request)
-                        .thenReturn(saved))
-                .flatMap(saved -> buildAccountResponse(saved))
-                .flatMap(response -> eventPublisher.publish(
+                .flatMap(saved -> saveTypeSpecificDetail(saved, request).thenReturn(saved))
+                .flatMap(this::buildAccountResponse)
+                // PUBLISH EVENT AFTER SUCCESSFUL CREATION — fire-and-forget, log any failure
+                .doOnSuccess(response -> eventPublisher.publish(
                         AccountEventType.ACCOUNT_OPENED,
                         userCode,
                         response.getAccountNumber(),
                         response.getAccountType(),
                         Map.of("currency", "IDR")
-                ).thenReturn(response))
-                .doOnSuccess(r -> log.info("Account opened. accountNumber={}, type={}, userId={}",
-                        r.getAccountNumber(), r.getAccountType(), userId));
+                ).subscribe(
+                        null,
+                        err -> log.error("[AccountService] Failed to publish ACCOUNT_OPENED event. " +
+                                "accountNumber={}", response.getAccountNumber(), err)
+                ))
+                // HANDLE UNIQUE CONSTRAINT VIOLATION (EITHER ACCOUNT NUMBER OR RDN SID)
+                .onErrorMap(DataIntegrityViolationException.class, ex -> {
+                    String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+
+                    if (msg.contains("uq_rdn_sid")) {
+                        log.warn("[AccountService] Duplicate SID via DB constraint. userId={}", userId);
+                        return new AccountExceptions.DuplicateSidException(request.getRdnDetail().getSid());
+                    }
+
+                    log.warn("[AccountService] Duplicate account type via DB constraint. userId={}, type={}",
+                            userId, request.getAccountType());
+                    return new AccountExceptions.AccountTypeAlreadyExistsException(
+                            request.getAccountType().name()
+                    );
+                })
+                .doOnSuccess(r -> log.info("[AccountService] Account opened. " +
+                        "accountNumber={}, type={}, userId={}", r.getAccountNumber(), r.getAccountType(), userId));
     }
 
     // OPEN NEW ACCOUNT
@@ -102,9 +150,6 @@ public class AccountService {
     // DETAILS FOR ONE ACCOUNT
 
     // UPDATE STATUS (ACTIVE, FROZEN, CLOSED) ABLE ADMIN ONLY
-
-
-
 
 
     // -------------------------------------------------------------------------
@@ -122,6 +167,7 @@ public class AccountService {
     // PRIVATE HELPERS
     // =========================================================================
 
+
     /**
      * Validates type-specific fields before opening an account.
      * Ensures DEPOSIT has depositDetail and RDN has rdnDetail.
@@ -138,14 +184,17 @@ public class AccountService {
 
     /**
      * Generates a unique 10-digit account number.
-     * Retries up to 5 times if a collision is detected.
+     * Fails fast after MAX_ACCOUNT_NUMBER_RETRY attempts.
      */
-    private Mono<String> generateUniqueAccountNumber() {
+    private Mono<String> generateUniqueAccountNumber(int attempt) {
+        if (attempt >= MAX_ACCOUNT_NUMBER_RETRY) {
+            return Mono.error(new AccountExceptions.AccountNumberGenerationException(MAX_ACCOUNT_NUMBER_RETRY));
+        }
         return Mono.defer(() -> {
             String candidate = String.format("%010d", Math.abs(RANDOM.nextLong()) % 10_000_000_000L);
             return accountRepository.existsByAccountNumber(candidate)
                     .flatMap(exists -> exists
-                            ? generateUniqueAccountNumber()
+                            ? generateUniqueAccountNumber(attempt + 1)
                             : Mono.just(candidate));
         });
     }
@@ -253,9 +302,9 @@ public class AccountService {
      */
     private BigDecimal resolveInterestRate(Short tenorMonths) {
         return switch (tenorMonths) {
-            case 1  -> new BigDecimal("3.50");
-            case 3  -> new BigDecimal("4.00");
-            case 6  -> new BigDecimal("4.75");
+            case 1 -> new BigDecimal("3.50");
+            case 3 -> new BigDecimal("4.00");
+            case 6 -> new BigDecimal("4.75");
             case 12 -> new BigDecimal("5.25");
             case 24 -> new BigDecimal("5.50");
             default -> new BigDecimal("3.50");

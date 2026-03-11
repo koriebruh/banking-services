@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -32,7 +33,13 @@ public interface AccountRepository extends R2dbcRepository<Account, UUID> {
      */
     Mono<Boolean> existsByAccountNumber(String accountNumber);
 
-    /**
+
+    Mono<Boolean> existsByUserIdAndAccountTypeAndStatusIn(
+            UUID userId,
+            AccountType accountType,
+            List<AccountStatus> statuses
+    );    /**
+
      * Find all accounts belonging to a user.
      */
     Flux<Account> findByUserId(UUID userId);
