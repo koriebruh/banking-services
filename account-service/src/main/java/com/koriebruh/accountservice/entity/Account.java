@@ -28,7 +28,7 @@ import java.util.UUID;
  * - Immutable audit fields
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("account")

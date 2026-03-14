@@ -4,7 +4,9 @@
 
 @host =http://localhost:8082
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi0yMDI2MDMxMC0wMDAwMSIsInN1YiI6IjViMmIxYmQ0LTE2MDYtNDM5YS04MTQ4LTVjYTQyNmZkMTMxZCIsImlzcyI6ImF1dGgtc2VydmljZSIsImF1ZCI6WyJiYW5raW5nLWFwaSJdLCJqdGkiOiJkYjhiMTA4ZC00ZGE2LTRlZjktYTRmOS1iODkxNTVlZDNkMTkiLCJpYXQiOjE3NzMyMjAwNDIsImV4cCI6MTc3MzIyMDk0Mn0.Uw_oTJOyiRxykaMEHQCzUdQ8cV1wflXuUjZygNshPw2YInc1VRzlgsJChn1mNLJr7aiJMOpIuRlG3erujN_adiJA72J0G5rCEofrnElaZjUJuT_rsanFrmU0he--zS3OpHdtjBlTml7WOJ0GpvhdBZJTYcG3G8W0YTgyLuBR2acQDFC4WRBLQpQusDhdSeAAsMkNP8HZhDlG15WMpySo74Pg46N_TCrMsAzIR40-zhmPOf8_Zsb3sbz-ag6nXTf7pOioYMSYW7uo_HNinXqctlB5aUkKK7cSG4N-GNuZkT_Pv6kaQ3nxTvz9CDd59UPRnTjbSFtOODFeIFxcUHHlnw
+@accessToken =
+eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ1c2VyQ29kZSI6IlVTUi1ERU1PLTEiLCJzdWIiOiI0MzBkOTMyYy0xYjkyLTQ2MjYtOGU0MC02NzcxNGE5OTA3ZDIiLCJpc3MiOiJhdXRoLXNlcnZpY2UiLCJhdWQiOlsiYmFua2luZy1hcGkiXSwianRpIjoiOTZhZDU3ODQtYjg5YS00OWY2LWE1NmItMmYzMTk5OWMzYjBjIiwiaWF0IjoxNzczMzM0MTg3LCJleHAiOjE3NzMzMzUwODd9.kqhUKx9_JeIbW6PkC4QLRRUgzH2KCHhQXMb956z4jIqE35nIzGgAEjRuX_MiR7SXVpP40_J0J3RHOj95PzOKTzOVK3cu0Ip9HcoX8CxsF2p5Qp2qSg2rtqPeXagfWyEni0XlrFAeakdEQ_sWtRsaI8BVOzvK4dlQCnrRoCLOnoUJTfeVFclO7nOBUFWO4T1jRjHwp1ALIPGlWWUi20S4PWWpyeCquwVgY4ekuhgg3G_Vl9V74Y70PYYfntfykUTqNtITKmpUxCMPkdFqNlgOM49HqdOzrUs8R3ZDefEQmOUHfuwFQEt-T05rR3jX7Ap2zmZNjPPTOhxcVvyQ0LfqKQ
+
 
 ### NEW SAVINGS
 POST {{host}}/api/v1/accounts
@@ -79,13 +81,20 @@ Authorization: Bearer {{accessToken}}
 
 
 ### FREEZE ACCOUNT (ADMIN ONLY) BY ACC NUM  ───────────────────────────────────────
-@accountNumberTarget =
+#OPTIONS => [ACTIVE, FROZEN, CLOSED]
+@accessTokenAdmin = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJBRE1JTiJdLCJ1c2VyQ29kZSI6IkFETUlOMDAxIiwic3ViIjoiOTU1MDliMjktODVkOS00MzIyLWE4NzgtZWUzZTA4YmFjNzcwIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6IjNhMTQ0OGFmLWQ4ODMtNGJkYi1iYTdmLWUyOTc0Njg2ZDJhNSIsImlhdCI6MTc3MzI0MDM1MiwiZXhwIjoxNzczMjQxMjUyfQ.Ez-gV4CqZpKhpbc7E0Bv1yBEMvrt5QINFqTvGlEwcR0rssRpItgRCcEB8s4-WJM7rYOnWEH3f_IwhMBVVsS0NN2Egqnch5_UXjVNE11HaniMHJJLwzB-5wYbNsI3URBC9zew6RWaNPdMD_v-9KRaVD3IwOVQKh_cXU4djFof6YlJcL3BW4TUBsB0tRcGWtZLvPTZMr0lNYZt9jK9eHqVyfZOTAkC1dqk9ky-WWgzKNhdz-6N6o-zgheGzIg6wUc4S5urdniwUJcZBq0Z4Tush1NM6znciddLXGAjanuymYetTGO9Smv04WWrWP-tZ6_YOEmRB3YrmxheeckhYC5-2Q
+@accountNumberTarget = 4303338787
 
 PATCH {{host}}/api/v1/accounts/{{accountNumberTarget}}/status
 Accept: application/json
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}
-Authorization: Bearer {{accessToken}}
+Authorization: Bearer {{accessTokenAdmin}}
+
+{
+    "status": "ACTIVE"
+}
+
 
 
 ### LIST MUTATION TRASACTION  ─────────────────────────────────────────────────────

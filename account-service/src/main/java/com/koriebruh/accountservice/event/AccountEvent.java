@@ -47,7 +47,7 @@ public class AccountEvent {
     private Instant occurredAt;       // UTC timestamp of when the event happened
 
     @JsonProperty("user_code")
-    private String userCode;          // business identifier, e.g. USR-20260308-00001
+    private String userCode;          // business identifier, e.g. USR-20260308-00001, only for messaging
 
     @JsonProperty("account_number")
     private String accountNumber;     // the account involved in the event

@@ -1,8 +1,7 @@
-package com.koriebruh.authservice.config;
+package com.koriebruh.authservice.filter;
 
 import com.koriebruh.authservice.dto.ApiResponse;
 import com.koriebruh.authservice.dto.ApiResponseFactory;
-import com.koriebruh.authservice.filter.CorrelationIdFilter;
 import com.koriebruh.authservice.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -104,12 +103,12 @@ public class JwtAuthenticationFilter implements WebFilter {
             return "mfa".equals(tokenType);
         }
         if (path.contains("/mfa/setup")) {
-            return tokenType == null;
+            return "access".equals(tokenType);
         }
         if (path.contains("/auth/refresh")) {
             return "refresh".equals(tokenType);
         }
-        return tokenType == null;
+        return "access".equals(tokenType);
     }
 
     /**

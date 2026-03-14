@@ -4,6 +4,7 @@ package com.koriebruh.accountservice.controller;
 import com.koriebruh.accountservice.dto.ApiResponse;
 import com.koriebruh.accountservice.dto.ApiResponseFactory;
 import com.koriebruh.accountservice.dto.request.OpenAccountRequest;
+import com.koriebruh.accountservice.dto.request.UpdateAccountStatusRequest;
 import com.koriebruh.accountservice.dto.response.AccountResponse;
 import com.koriebruh.accountservice.service.AccountService;
 import com.koriebruh.accountservice.util.JwtUtil;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -103,6 +105,29 @@ public class AccountController {
                 .map(account -> apiResponseFactory.success(
                         "Account detail retrieved successfully",
                         account,
+                        correlationId
+                ));
+    }
+
+    @PatchMapping(
+            value = "/{accountNumber}/status",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<ApiResponse<AccountResponse>> updateAccountStatus(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
+            @RequestHeader(name = "X-Correlation-ID") String correlationId,
+            @PathVariable String accountNumber,
+            @RequestBody @Valid UpdateAccountStatusRequest request
+    ) {
+        String token = extractToken(authHeader);
+        String userCode = jwtUtil.extractUserCode(token);
+
+        return accountService.updateAccountStatus(accountNumber, request, userCode)
+                .map(response -> apiResponseFactory.success(
+                        "Account status updated",
+                        response,
                         correlationId
                 ));
     }

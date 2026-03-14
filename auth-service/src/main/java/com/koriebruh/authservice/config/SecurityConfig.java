@@ -1,5 +1,6 @@
 package com.koriebruh.authservice.config;
 
+import com.koriebruh.authservice.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;

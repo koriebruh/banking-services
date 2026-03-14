@@ -5,9 +5,11 @@
 -- =====================================================
 
 -- ADMIN
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+INSERT INTO users (id, user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role,
+                   status,
                    email_verified)
-SELECT 'ADMIN001',
+SELECT '00000000-0000-0000-0000-000000000001',
+       'ADMIN001',
        'System Administrator',
        'admin@bank.local',
        '08000000001',
@@ -23,9 +25,11 @@ SELECT 'ADMIN001',
 
 
 -- TELLER
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+INSERT INTO users (id, user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role,
+                   status,
                    email_verified)
-SELECT 'TELLER001',
+SELECT '00000000-0000-0000-0000-000000000002',
+       'TELLER001',
        'Default Teller',
        'teller@bank.local',
        '08000000002',
@@ -41,9 +45,11 @@ SELECT 'TELLER001',
 
 
 -- CUSTOMER (dummy testing user)
-INSERT INTO users (user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role, status,
+INSERT INTO users (id, user_code, full_name, email, phone_number, password_hash, nik, address, date_of_birth, role,
+                   status,
                    email_verified)
-SELECT 'USR-DEMO-1',
+SELECT '00000000-0000-0000-0000-000000000003',
+       'USR-DEMO-1',
        'Maya Kartika Sari',
        'maya.kartika.sari@example.com',
        '08000000003',

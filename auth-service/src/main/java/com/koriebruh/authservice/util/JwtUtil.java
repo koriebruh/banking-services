@@ -141,7 +141,8 @@ public class JwtUtil {
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", List.of(user.getRole().name()));
-        claims.put("userCode", user.getUserCode());
+        claims.put("userCode", user.getUserCode()); // for logging and debugging in downstream services
+        claims.put("type", "access");
 
         return Jwts.builder()
                 .claims(claims)

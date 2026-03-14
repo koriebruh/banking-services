@@ -43,7 +43,6 @@ public class JwtAuthenticationFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        // No token — pass through, Spring Security handles unauthenticated access
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             return chain.filter(exchange);
         }
@@ -52,13 +51,14 @@ public class JwtAuthenticationFilter implements WebFilter {
         String requestPath = exchange.getRequest().getPath().value();
 
         try {
-            Claims claims = jwtUtil.extractAllClaims(token);
-            String tokenType = claims.get("type", String.class);
-
-            if (!isTokenTypeAllowed(requestPath, tokenType)) {
-                log.warn("[JwtAuthFilter] Token type mismatch. path={}, tokenType={}", requestPath, tokenType);
-                return rejectRequest(exchange, "Invalid token type for this endpoint");
+            // Account-service hanya menerima access token, tolak yang lain
+            if (!jwtUtil.isAccessTokenValid(token)) {
+                String y = jwtUtil.extractTokenType(token);
+                log.warn("[JwtAuthFilter] Invalid or non-access token. path={} and that is token={}", requestPath, y);
+                return rejectRequest(exchange, "Invalid access token");
             }
+
+            Claims claims = jwtUtil.extractAllClaims(token);
 
             String userId = claims.getSubject();
             List<?> rawRoles = claims.get("roles", List.class);
@@ -72,7 +72,7 @@ public class JwtAuthenticationFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            log.debug("[JwtAuthFilter] Authenticated. userId={}, path={}, tokenType={}", userId, requestPath, tokenType);
+            log.debug("[JwtAuthFilter] Authenticated. userId={}, path={}", userId, requestPath);
 
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
@@ -92,25 +92,6 @@ public class JwtAuthenticationFilter implements WebFilter {
         }
     }
 
-    /**
-     * Token type enforcement per endpoint:
-     * - /mfa/verify        → hanya mfaToken
-     * - /mfa/setup/**      → accessToken (type = null)
-     * - /auth/refresh      → refreshToken
-     * - semua lainnya      → accessToken (type = null)
-     */
-    private boolean isTokenTypeAllowed(String path, String tokenType) {
-        if (path.contains("/mfa/validate")) {
-            return "mfa".equals(tokenType);
-        }
-        if (path.contains("/mfa/setup")) {
-            return tokenType == null;
-        }
-        if (path.contains("/auth/refresh")) {
-            return "refresh".equals(tokenType);
-        }
-        return tokenType == null;
-    }
 
     /**
      * Writes a structured 401 Unauthorized JSON response using {@link ApiResponseFactory}.

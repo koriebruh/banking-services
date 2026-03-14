@@ -12,10 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -124,7 +121,7 @@ public class JwtUtil {
 
     /**
      * Extracts the roles claim from the token.
-     * Embedded by auth-service as a list, e.g. ["CUSTOMER"] or ["ADMIN"].
+     * Embedded by auth-service as a list, e.g. ["CUSTOMER"] or ["ADMIN"] or ["TELLER"].
      *
      * @param token raw JWT string
      * @return list of role strings
@@ -166,7 +163,7 @@ public class JwtUtil {
      * Returns true if the token is a valid access token:
      * — RSA signature verified against public key
      * — Token is not expired
-     * — No "type" claim present (i.e. not a refresh or MFA token)
+     * — Token type is "access" (rejects refresh/mfa tokens)
      *
      * <p><b>Flow:</b>    JwtAuthenticationFilter → isAccessTokenValid → inject SecurityContext
      * <p><b>Security:</b> Rejects refresh and MFA tokens that are mistakenly sent to this service.
@@ -178,8 +175,9 @@ public class JwtUtil {
         try {
             Claims claims = extractAllClaims(token);
             boolean notExpired = claims.getExpiration().after(new Date());
-            boolean isAccessToken = claims.get("type") == null;
-            return notExpired && isAccessToken;
+            String tokenType = claims.get("type", String.class);
+            boolean isAccessToken = "access".equals(tokenType);
+            return isAccessToken && notExpired;
         } catch (Exception e) {
             return false;
         }

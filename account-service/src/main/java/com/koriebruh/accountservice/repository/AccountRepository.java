@@ -89,7 +89,7 @@ public interface AccountRepository extends R2dbcRepository<Account, UUID> {
     @Modifying
     @Query("""
             UPDATE account
-            SET status = :status::account_status, updated_at = NOW()
+            SET status = :status, updated_at = NOW()
             WHERE id = :id
             """)
     Mono<Long> updateStatus(UUID id, String status);
@@ -104,6 +104,7 @@ public interface AccountRepository extends R2dbcRepository<Account, UUID> {
             FOR UPDATE
             """)
     Mono<Account> findByIdForUpdate(UUID id);
+
 
     /**
      * Find account by account number for update.

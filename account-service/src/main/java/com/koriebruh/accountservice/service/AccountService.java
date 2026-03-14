@@ -1,6 +1,7 @@
 package com.koriebruh.accountservice.service;
 
 import com.koriebruh.accountservice.dto.request.OpenAccountRequest;
+import com.koriebruh.accountservice.dto.request.UpdateAccountStatusRequest;
 import com.koriebruh.accountservice.dto.response.AccountResponse;
 import com.koriebruh.accountservice.entity.Account;
 import com.koriebruh.accountservice.entity.AccountTransaction;
@@ -26,10 +27,13 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.koriebruh.accountservice.entity.enums.AccountStatus.*;
 
 @Slf4j
 @Service
@@ -54,7 +58,6 @@ public class AccountService {
     // -------------------------------------------------------------------------
     // ACCOUNT MANAGEMENT
     // -------------------------------------------------------------------------
-
     /**
      * Opens a new bank account for the authenticated user.
      *
@@ -87,7 +90,7 @@ public class AccountService {
                 .then(accountRepository.existsByUserIdAndAccountTypeAndStatusIn(
                         userId,
                         request.getAccountType(),
-                        List.of(AccountStatus.ACTIVE, AccountStatus.FROZEN)
+                        List.of(ACTIVE, FROZEN)
                 ))
                 .flatMap(exists -> exists
                         ? Mono.error(new AccountExceptions.AccountTypeAlreadyExistsException(
@@ -103,7 +106,7 @@ public class AccountService {
                                 .accountType(request.getAccountType())
                                 .balance(initialBalance(request))
                                 .currency("IDR")
-                                .status(AccountStatus.ACTIVE)
+                                .status(ACTIVE)
                                 .build()
                 ))
                 // SAVE TYPE-SPECIFIC DETAIL
@@ -169,11 +172,101 @@ public class AccountService {
     }
 
 
+    /**
+     * Updates the lifecycle status of a bank account (ACTIVE, FROZEN, CLOSED).
+     * Intended for admin use only — caller must enforce role check at controller level.
+     *
+     * <p><b>Flow:</b>
+     * <ol>
+     *   <li>Fetch account by account number — 404 if not found.</li>
+     *   <li>Guard: CLOSED account cannot be modified.</li>
+     *   <li>Guard: No-op if status is already the same.</li>
+     *   <li>Guard: DEPOSIT account cannot be CLOSED before maturity date.</li>
+     *   <li>Update status atomically via direct SQL query.</li>
+     *   <li>Publish status event to Kafka (fire-and-forget, failures are logged only).</li>
+     * </ol>
+     *
+     * <p><b>Status transitions:</b>
+     * <ul>
+     *   <li>ACTIVE  → FROZEN  : account suspended, publishes ACCOUNT_FROZEN</li>
+     *   <li>FROZEN  → ACTIVE  : account reinstated, publishes ACCOUNT_UNFROZEN</li>
+     *   <li>ACTIVE  → CLOSED  : permanent closure, publishes ACCOUNT_CLOSED</li>
+     *   <li>FROZEN  → CLOSED  : permanent closure, publishes ACCOUNT_CLOSED</li>
+     *   <li>CLOSED  → any     : rejected — CLOSED is a terminal state</li>
+     * </ul>
+     *
+     * <p><b>Consistency:</b> Runs in a reactive transaction.
+     * Status update uses an atomic SQL query instead of fetch-modify-save
+     * to prevent race conditions on concurrent admin operations.
+     *
+     * @param accountNumber target account number
+     * @param request       contains the desired new status
+     * @param userCode      admin user code for Kafka event attribution
+     * @return updated account response
+     */
+    @Transactional
+    public Mono<AccountResponse> updateAccountStatus(
+            String accountNumber,
+            UpdateAccountStatusRequest request,
+            String userCode
+    ) {
+        return accountRepository.findByAccountNumber(accountNumber)
+                .switchIfEmpty(Mono.error(new AccountExceptions.AccountNotFoundException(accountNumber)))
+                .flatMap(account -> {
+                    if (account.getStatus() == CLOSED) {
+                        return Mono.error(new AccountExceptions.AccountNotActiveException(accountNumber));
+                    }
 
-    // DETAILS FOR ONE ACCOUNT
-
-    // UPDATE STATUS (ACTIVE, FROZEN, CLOSED) ABLE ADMIN ONLY
-
+                    if (account.getStatus() == request.getStatus()) {
+                        return Mono.error(new IllegalArgumentException(
+                                "Account is already in status: " + request.getStatus()));
+                    }
+                    // DEPOSIT tidak bisa di-CLOSE sebelum maturity
+                    if (account.getAccountType() == AccountType.DEPOSIT
+                            && request.getStatus() == CLOSED) {
+                        return depositDetailRepository.findByAccountId(account.getId())
+                                .flatMap(detail -> {
+                                    if (detail.getMaturityDate().isAfter(LocalDate.now())) {
+                                        return Mono.error(
+                                                new AccountExceptions.DepositNotMaturedException(accountNumber));
+                                    }
+                                    return Mono.just(account);
+                                });
+                    }
+                    return Mono.just(account);
+                })
+                // UPDATE STATUS
+                .flatMap(account -> accountRepository.updateStatus(account.getId(), request.getStatus().name())
+                        .thenReturn(account.toBuilder()
+                                .status(request.getStatus())
+                                .updatedAt(Instant.now())
+                                .build())
+                )
+                // SEND ACCOUNT STATUS CHANGE EVENT TO KAFKA
+                .flatMap(saved -> {
+                    String eventType = switch (saved.getStatus()) {
+                        case FROZEN -> AccountEventType.ACCOUNT_FROZEN;
+                        case CLOSED -> AccountEventType.ACCOUNT_CLOSED;
+                        case ACTIVE -> AccountEventType.ACCOUNT_UNFROZEN; // unfreeze
+                    };
+                    // FIX: fire-and-forget
+                    return eventPublisher.publish(
+                                    eventType,
+                                    userCode,
+                                    saved.getAccountNumber(),
+                                    saved.getAccountType().name(),
+                                    Map.of("new_status", saved.getStatus().name())
+                            ).thenReturn(saved)
+                            .onErrorResume(err -> {
+                                log.error("[AccountService] Failed to publish status event. accountNumber={}",
+                                        saved.getAccountNumber(), err);
+                                return Mono.just(saved);
+                            });
+                })
+                .flatMap(this::buildAccountResponse)
+                .doOnSuccess(r -> log.info("[AccountService] Account status updated. accountNumber={}, status={}, by={}",
+                        accountNumber, request.getStatus(), userCode));
+    }
 
     // -------------------------------------------------------------------------
     // MUTATION & HISTORY
