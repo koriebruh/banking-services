@@ -124,6 +124,7 @@ public class AccountController {
         String token = extractToken(authHeader);
         String userCode = jwtUtil.extractUserCode(token);
 
+
         return accountService.updateAccountStatus(accountNumber, request, userCode)
                 .map(response -> apiResponseFactory.success(
                         "Account status updated",

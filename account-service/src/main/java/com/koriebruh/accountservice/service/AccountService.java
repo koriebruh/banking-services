@@ -8,6 +8,7 @@ import com.koriebruh.accountservice.entity.AccountTransaction;
 import com.koriebruh.accountservice.entity.DepositDetail;
 import com.koriebruh.accountservice.entity.RdnDetail;
 import com.koriebruh.accountservice.entity.enums.AccountStatus;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import com.koriebruh.accountservice.entity.enums.AccountType;
 import com.koriebruh.accountservice.event.AccountEventPublisher;
 import com.koriebruh.accountservice.event.AccountEventType;
@@ -20,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -54,6 +55,7 @@ public class AccountService {
 
     private static final int MAX_ACCOUNT_NUMBER_RETRY = 5;
 
+    private final TransactionalOperator transactionalOperator;
 
     // -------------------------------------------------------------------------
     // ACCOUNT MANAGEMENT
@@ -82,7 +84,6 @@ public class AccountService {
      * @param userCode business user identifier from JWT, used for Kafka event
      * @return account response with type-specific detail
      */
-    @Transactional
     public Mono<AccountResponse> openAccount(OpenAccountRequest request, UUID userId, String userCode) {
         // VALIDATE TYPE-SPECIFIC FIELDS
         return validateTypeSpecificRequest(request)
@@ -139,7 +140,8 @@ public class AccountService {
                             request.getAccountType().name());
                 })
                 .doOnSuccess(r -> log.info("[AccountService] Account opened. accountNumber={}, type={}, userId={}",
-                        r.getAccountNumber(), r.getAccountType(), userId));
+                        r.getAccountNumber(), r.getAccountType(), userId))
+                .as(transactionalOperator::transactional);
     }
 
 
@@ -204,7 +206,6 @@ public class AccountService {
      * @param userCode      admin user code for Kafka event attribution
      * @return updated account response
      */
-    @Transactional
     public Mono<AccountResponse> updateAccountStatus(
             String accountNumber,
             UpdateAccountStatusRequest request,
@@ -218,10 +219,11 @@ public class AccountService {
                     }
 
                     if (account.getStatus() == request.getStatus()) {
-                        return Mono.error(new IllegalArgumentException(
-                                "Account is already in status: " + request.getStatus()));
+                        return Mono.error(
+                                new AccountExceptions.AccountStatusAlreadySetException(account.getStatus().toString())
+                        );
                     }
-                    // DEPOSIT tidak bisa di-CLOSE sebelum maturity
+                    // DEPOSIT tidak bisa di-CLOSE sebelum maturity1
                     if (account.getAccountType() == AccountType.DEPOSIT
                             && request.getStatus() == CLOSED) {
                         return depositDetailRepository.findByAccountId(account.getId())
@@ -265,7 +267,8 @@ public class AccountService {
                 })
                 .flatMap(this::buildAccountResponse)
                 .doOnSuccess(r -> log.info("[AccountService] Account status updated. accountNumber={}, status={}, by={}",
-                        accountNumber, request.getStatus(), userCode));
+                        accountNumber, request.getStatus(), userCode))
+                .as(transactionalOperator::transactional);
     }
 
     // -------------------------------------------------------------------------

@@ -50,6 +50,21 @@ public class AccountExceptions extends RuntimeException {
     // -------------------------------------------------------------------------
 
     /**
+     * Thrown when an account status transition is invalid,
+     * e.g. attempting to set ACTIVE on an already ACTIVE account.
+     */
+    public static class InvalidStatusTransitionException extends AccountExceptions {
+        public InvalidStatusTransitionException(String currentStatus) {
+            super("Account is already in status: " + currentStatus);
+        }
+    }
+
+    public static class AccountStatusAlreadySetException extends AccountExceptions {
+        public AccountStatusAlreadySetException(String status) {
+            super("Account is already in status: " + status);
+        }
+    }
+    /**
      * Thrown when a generated account number collides with an existing one.
      * Should be extremely rare — triggers a regeneration attempt in service layer.
      */
