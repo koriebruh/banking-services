@@ -4,14 +4,14 @@ server:
     idle-timeout: 60s
   port: 8082
 
-grpc:
-  server:
-    port: 9090
-
 # -----------------------------------------------------------------------
 # APPLICATION CONFIGURATION FOR ACCOUNT SERVICE
 # -----------------------------------------------------------------------
 spring:
+  grpc:
+    server:
+      port: 9091
+
   application:
     name: account-service
     version: 1.0.0

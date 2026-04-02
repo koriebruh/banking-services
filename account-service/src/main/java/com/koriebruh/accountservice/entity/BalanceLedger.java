@@ -14,22 +14,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Immutable ledger of all balance mutations for each account.
- * Records are append-only - never updated or deleted (audit trail).
- * <p>
- * Banking Best Practices Applied:
- * - BigDecimal for all monetary values
- * - balance_before/balance_after captured at write time for auditability
- * - reference_id for idempotency (prevents double-posting)
- * - Immutable record design
- */
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("account_transaction")
-public class AccountTransaction {
+@Table("balance_ledger")
+public class BalanceLedger {
 
     @Id
     private UUID id;
@@ -39,12 +30,6 @@ public class AccountTransaction {
      */
     @Column("account_id")
     private UUID accountId;
-
-    /**
-     * Direction of fund movement (CREDIT or DEBIT)
-     */
-    @Column("type")
-    private TransactionType type;
 
     /**
      * Transaction amount (always positive).
@@ -76,12 +61,6 @@ public class AccountTransaction {
     private String referenceId;
 
     /**
-     * Human-readable description of the transaction
-     */
-    @Column("description")
-    private String description;
-
-    /**
      * Timestamp when transaction was created (immutable)
      */
     @CreatedDate
@@ -89,17 +68,12 @@ public class AccountTransaction {
     private Instant createdAt;
 
     /**
-     * Validate that balance_after is correctly calculated
+     * Validates that balance_after == balance_before + amount.
+     * amount is signed: positive = CREDIT, negative = DEBIT.
      */
     public boolean isBalanceConsistent() {
-        if (balanceBefore == null || balanceAfter == null || amount == null || type == null) {
-            return false;
-        }
-        BigDecimal expectedAfter = switch (type) {
-            case CREDIT -> balanceBefore.add(amount);
-            case DEBIT -> balanceBefore.subtract(amount);
-        };
-        return balanceAfter.compareTo(expectedAfter) == 0;
+        if (balanceBefore == null || balanceAfter == null || amount == null) return false;
+        return balanceAfter.compareTo(balanceBefore.add(amount)) == 0;
     }
 }
 

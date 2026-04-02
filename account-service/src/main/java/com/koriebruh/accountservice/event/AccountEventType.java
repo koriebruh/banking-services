@@ -43,20 +43,6 @@ public final class AccountEventType {
 
     public static final String ACCOUNT_UNFROZEN = "account.unfrozen";
 
-    // -------------------------------------------------------------------------
-    // Balance mutations
-    // Fired after each successful Debit or Credit gRPC call from transfer-service.
-    // -------------------------------------------------------------------------
-
-    /**
-     * Fired when funds are credited (received) into an account.
-     */
-    public static final String ACCOUNT_CREDITED = "account.credited";
-
-    /**
-     * Fired when funds are debited (sent) from an account.
-     */
-    public static final String ACCOUNT_DEBITED = "account.debited";
 
     // -------------------------------------------------------------------------
     // Deposit

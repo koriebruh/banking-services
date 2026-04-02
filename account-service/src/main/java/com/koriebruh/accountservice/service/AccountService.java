@@ -4,24 +4,20 @@ import com.koriebruh.accountservice.dto.request.OpenAccountRequest;
 import com.koriebruh.accountservice.dto.request.UpdateAccountStatusRequest;
 import com.koriebruh.accountservice.dto.response.AccountResponse;
 import com.koriebruh.accountservice.entity.Account;
-import com.koriebruh.accountservice.entity.AccountTransaction;
 import com.koriebruh.accountservice.entity.DepositDetail;
 import com.koriebruh.accountservice.entity.RdnDetail;
-import com.koriebruh.accountservice.entity.enums.AccountStatus;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import com.koriebruh.accountservice.entity.enums.AccountType;
 import com.koriebruh.accountservice.event.AccountEventPublisher;
 import com.koriebruh.accountservice.event.AccountEventType;
 import com.koriebruh.accountservice.exception.AccountExceptions;
 import com.koriebruh.accountservice.repository.AccountRepository;
-import com.koriebruh.accountservice.repository.AccountTransactionRepository;
 import com.koriebruh.accountservice.repository.DepositDetailRepository;
 import com.koriebruh.accountservice.repository.RdnDetailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -42,8 +38,6 @@ import static com.koriebruh.accountservice.entity.enums.AccountStatus.*;
 public class AccountService {
 
     private final AccountRepository accountRepository;
-
-    private final AccountTransactionRepository accountTransaction;
 
     private final DepositDetailRepository depositDetailRepository;
 
@@ -270,16 +264,6 @@ public class AccountService {
                         accountNumber, request.getStatus(), userCode))
                 .as(transactionalOperator::transactional);
     }
-
-    // -------------------------------------------------------------------------
-    // MUTATION & HISTORY
-    // -------------------------------------------------------------------------
-
-
-    // LIST HISTORY TRANSACTIONS FOR ACCOUNT
-
-
-    // DETAIL HISTORY FOR ONE TRANSACTION
 
 
     // =========================================================================

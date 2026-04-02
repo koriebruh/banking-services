@@ -23,9 +23,6 @@ ALTER TABLE deposit_detail
 ALTER
 COLUMN interest_payout TYPE VARCHAR(20);
 
-ALTER TABLE account_transaction
-ALTER
-COLUMN type TYPE VARCHAR(20);
 
 -- -----------------------------------------------------------------------------
 -- STEP 3: Restore default values (sekarang sebagai plain string)
@@ -47,10 +44,6 @@ ALTER TABLE account
 ALTER TABLE deposit_detail
     ADD CONSTRAINT chk_interest_payout_type
         CHECK (interest_payout IN ('END_OF_TERM', 'MONTHLY'));
-
-ALTER TABLE account_transaction
-    ADD CONSTRAINT chk_transaction_type
-        CHECK (type IN ('CREDIT', 'DEBIT'));
 
 
 -- CONSTRAINT tambahan untuk memastikan tidak ada duplikasi account_type per user_id

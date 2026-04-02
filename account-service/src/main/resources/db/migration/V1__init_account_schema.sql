@@ -6,7 +6,7 @@
 --   1. account             — Core bank account records for all account types
 --   2. deposit_detail      — Extended attributes for DEPOSIT accounts
 --   3. rdn_detail          — Extended attributes for RDN accounts
---   4. account_transaction — Debit/credit mutation history per account
+--   4. balance_ledger      — Debit/credit mutations for audit and reconciliation (internal use only)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -26,12 +26,6 @@ CREATE TYPE account_status AS ENUM (
     'ACTIVE',    -- Account is operational
     'FROZEN',    -- Temporarily suspended by admin
     'CLOSED'     -- Permanently closed, no further transactions allowed
-);
-
--- Direction of a fund movement
-CREATE TYPE transaction_type AS ENUM (
-    'CREDIT',    -- Funds received (balance increases)
-    'DEBIT'      -- Funds sent (balance decreases)
 );
 
 -- Interest disbursement schedule for DEPOSIT accounts
@@ -120,33 +114,32 @@ CREATE TABLE rdn_detail
 );
 
 -- -----------------------------------------------------------------------------
--- TABLE: account_transaction
+-- TABLE: balance_ledger
 --
--- Immutable ledger of all balance mutations for each account.
--- Records are written by account-service whenever transfer-service calls
--- the Debit or Credit gRPC methods.
+-- Internal append-only ledger for account balance mutations.
+-- NOT user-facing — transaction history lives in transaction-service.
+--
+-- Written by the Kafka consumer (transaction.completed event) after
+-- account.balance is updated.
 --
 -- Notes:
---   - balance_before and balance_after are captured at write time for
---     auditability — do not recalculate from previous rows.
---   - reference_id is the idempotency key provided by transfer-service.
---     The UNIQUE constraint prevents double-posting on gRPC retries.
---   - Rows in this table are never updated or deleted (append-only ledger).
+--   - reference_id is the idempotency key from transaction-service.
+--     UNIQUE constraint prevents double-posting on Kafka redelivery.
+--   - amount sign convention: positive = CREDIT, negative = DEBIT.
+--   - balance_before / balance_after captured at write time for audit.
+--   - Rows are never updated or deleted (append-only).
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE account_transaction
-(
-    id             UUID PRIMARY KEY          DEFAULT gen_random_uuid(),
-    account_id     UUID             NOT NULL REFERENCES account (id),
-    type           transaction_type NOT NULL,
-    amount         NUMERIC(19, 4)   NOT NULL CHECK (amount > 0),
-    balance_before NUMERIC(19, 4)   NOT NULL,
-    balance_after  NUMERIC(19, 4)   NOT NULL,
-    reference_id   VARCHAR(100) UNIQUE,
-    description    VARCHAR(255),
-    created_at     TIMESTAMPTZ      NOT NULL DEFAULT NOW()
+CREATE TABLE balance_ledger (
+    id             UUID PRIMARY KEY     DEFAULT gen_random_uuid(),
+    account_id     UUID        NOT NULL REFERENCES account (id),
+    amount         NUMERIC(19, 4) NOT NULL,  -- positif = credit, negatif = debit
+    balance_before NUMERIC(19, 4) NOT NULL,
+    balance_after  NUMERIC(19, 4) NOT NULL,
+    reference_id   VARCHAR(100) UNIQUE,      -- idempotency key from tx-service
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_txn_account_id ON account_transaction (account_id);
-CREATE INDEX idx_txn_created_at ON account_transaction (created_at DESC);
-CREATE INDEX idx_txn_reference ON account_transaction (reference_id);
+CREATE INDEX idx_txn_account_id ON balance_ledger (account_id);
+CREATE INDEX idx_txn_created_at ON balance_ledger (created_at DESC);
+CREATE INDEX idx_txn_reference ON balance_ledger (reference_id);

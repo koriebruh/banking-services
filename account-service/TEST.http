@@ -94,7 +94,6 @@ Authorization: Bearer {{accessTokenAdmin}}
 }
 
 
-
 ### LIST MUTATION TRASACTION  ─────────────────────────────────────────────────────
 POST {{host}}/api/v1/accounts/{{accountNum}}/transactions
 Accept: application/json
