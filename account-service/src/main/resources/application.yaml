@@ -56,8 +56,10 @@ logging:
 
 app:
   kafka:
-    topic:
+    topic-produce:
       account-events: account.events
+    topis-consume:
+      transaction-events: transaction.events
   event:
     version: 1.0.0
   jwt:

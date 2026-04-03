@@ -34,7 +34,7 @@ public class AccountEventPublisher {
 
     private final KafkaTemplate<String, AccountEvent> kafkaTemplate;
 
-    @Value("${app.kafka.topic.account-events}")
+    @Value("${app.kafka.topic-produce.account-events}")
     private String topic;
 
     @Value("${app.event.version}")
