@@ -8,6 +8,10 @@ server:
 # APPLICATION CONFIGURATION FOR ACCOUNT SERVICE
 # -----------------------------------------------------------------------
 spring:
+  grpc:
+    server:
+      port: 9091
+
   application:
     name: account-service
     version: 1.0.0
@@ -33,7 +37,7 @@ spring:
     enabled: true
 
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
@@ -41,6 +45,8 @@ spring:
       properties:
         max.in.flight.requests.per.connection: 1
         enable.idempotence: true
+    listener:
+      ack-mode: manual
 
 logging:
   level:
@@ -52,9 +58,12 @@ logging:
 
 app:
   kafka:
-    topic:
+    topic-produce:
       account-events: account.events
-      version: 1.0.0
+    topic-consume:
+      transfer-events: transfer.events
+  event:
+    version: 1.0.0
   jwt:
     public-key: ${JWT_PUBLIC_KEY}
 

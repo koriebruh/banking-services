@@ -2,33 +2,33 @@ services:
   # -----------------------------------------------------------------------
   # APPLICATION SERVICE
   # -----------------------------------------------------------------------
-#  account-service:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: account-service
-#    restart: unless-stopped
-#    ports:
-#      - "8082:8082"
-#      - "9090:9090"
-#    env_file:
-#      - .env                         # ← otomatis load semua variable dari .env
-#    environment:
-#      SPRING_R2DBC_PASSWORD: ${DB_PASSWORD}
-#      SPRING_FLYWAY_PASSWORD: ${DB_PASSWORD}
-#      APP_JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-#    depends_on:
-#      account-postgres:
-#        condition: service_healthy
-#    networks:
-#      - account-network
-#      - shared-network
-#    healthcheck:
-#      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 60s
+  account-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: account-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082" # HTTP
+      - "9091:9091" # GRPC
+    env_file:
+      - .env                         # ← otomatis load semua variable dari .env
+    environment:
+      SPRING_R2DBC_PASSWORD: ${DB_PASSWORD}
+      SPRING_FLYWAY_PASSWORD: ${DB_PASSWORD}
+      APP_JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      account-postgres:
+        condition: service_healthy
+    networks:
+      - account-network
+      - shared-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 
   # -----------------------------------------------------------------------

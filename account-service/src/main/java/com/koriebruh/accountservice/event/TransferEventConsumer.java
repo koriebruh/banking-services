@@ -35,7 +35,7 @@ public class TransferEventConsumer {
     private final TransactionalOperator transactionalOperator;
 
     @KafkaListener(
-            topics = "transfer.event",
+            topics = "${app.kafka.topic-consume.transfer-events}",
             groupId = "account-service",
             containerFactory = "transferEventListenerFactory"
     )

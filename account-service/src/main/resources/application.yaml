@@ -45,6 +45,8 @@ spring:
       properties:
         max.in.flight.requests.per.connection: 1
         enable.idempotence: true
+    listener:
+      ack-mode: manual
 
 logging:
   level:
@@ -58,8 +60,8 @@ app:
   kafka:
     topic-produce:
       account-events: account.events
-    topis-consume:
-      transaction-events: transaction.events
+    topic-consume:
+      transfer-events: transfer.events
   event:
     version: 1.0.0
   jwt:
