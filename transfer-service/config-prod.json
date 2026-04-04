@@ -1,0 +1,41 @@
+{
+  "app": {
+    "name": "transfer-service"
+  },
+  "web": {
+    "prefork": false,
+    "port": 3000
+  },
+  "log": {
+    "level": 6
+  },
+  "database": {
+    "username": "${DB_USERNAME}",
+    "password": "${DB_PASSWORD}",
+    "host": "${DB_HOST}",
+    "port": 5434,
+    "name": "${DB_NAME}",
+    "pool": {
+      "idle": 10,
+      "max": 100,
+      "lifetime": 300
+    }
+  },
+  "kafka": {
+    "bootstrap": {
+      "servers": "kafka:29092"
+    },
+    "group": {
+      "id": "transfer-service"
+    },
+    "auto": {
+      "offset": {
+        "reset": "earliest"
+      }
+    },
+    "producer": {
+      "enabled": false,
+      "topic": "transfer-events"
+    }
+  }
+}

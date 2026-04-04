@@ -1,0 +1,38 @@
+services:
+  # -----------------------------------------------------------------------
+  # APPLICATION SERVICE
+  # -----------------------------------------------------------------------
+
+
+  # -----------------------------------------------------------------------
+  # POSTGRESQL
+  # -----------------------------------------------------------------------
+  transfer-postgres:
+    image: postgres:16-alpine
+    container_name: transfer-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5434:5432"
+    env_file:
+      - .env
+    networks:
+      - transfer-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    
+networks:
+  transfer-network:
+    name: transfer-network
+    driver: bridge
+  shared-network:
+    external: true
