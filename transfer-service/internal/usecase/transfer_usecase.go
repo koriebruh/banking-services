@@ -45,6 +45,51 @@ func NewTransferUseCase(
 	}
 }
 
+func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *model.TopUpRequest) (*model.TopUpResponse, error) {
+	if err := uc.Validate.Struct(req); err != nil {
+		return nil, err
+	}
+
+	// Validasi target account — cek ACTIVE
+	targetResp, err := uc.AccountGrpcClient.GetAccountDetail(ctx, req.TargetAccountNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if targetResp.Status != "ACTIVE" {
+		return nil, exception.ErrTargetAccountNotActive
+	}
+
+	transfer := req.ToEntity(userID)
+
+	if err := uc.TransferRepository.Create(uc.DB, transfer); err != nil {
+		return nil, err
+	}
+
+	// Publish Kafka langsung — ga perlu confirm
+	kafkaEvent := event.TransferEvent{
+		ReferenceID:         transfer.ReferenceID,
+		SourceAccountNumber: "EXTERNAL",
+		TargetAccountNumber: transfer.TargetAccountNumber,
+		Amount:              transfer.Amount,
+		Currency:            transfer.SourceCurrency,
+	}
+
+	if err := uc.TransferProducer.Publish(ctx, kafkaEvent); err != nil {
+		uc.Log.Errorf("Kafka publish failed referenceId=%s: %v", transfer.ReferenceID, err)
+	}
+
+	return &model.TopUpResponse{
+		ReferenceID:         transfer.ReferenceID,
+		Status:              string(transfer.Status),
+		TargetAccountNumber: transfer.TargetAccountNumber,
+		Amount:              transfer.Amount,
+		Currency:            transfer.SourceCurrency,
+		Description:         transfer.Description,
+		SettledAt:           transfer.SettledAt,
+	}, nil
+}
+
 // Initiate validates input, calls gRPC to validate both accounts,
 // persists transfer as PENDING, and returns the draft for user review.
 func (uc *TransferUseCase) Initiate(ctx context.Context, userID uuid.UUID, req *model.InitiateTransferRequest) (*model.InitiateTransferResponse, error) {

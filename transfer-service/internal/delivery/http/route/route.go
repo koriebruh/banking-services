@@ -20,11 +20,11 @@ func (c *RouteConfig) Setup() {
 func (c *RouteConfig) SetupRoute() {
 	// CONNECT WITH MIDDLEWARE
 	c.App.Use(c.CorrelationIdMiddleware)
-	c.App.Use(c.JwtMiddleware)
 	v1 := c.App.Group("/api/v1")
 
 	// LIST OF ROUTE --
 	transfers := v1.Group("/transfers", c.JwtMiddleware)
+	transfers.Post("/topup", c.TransferController.TopUp)
 	transfers.Post("/", c.TransferController.Initiate)
 	transfers.Post("/:referenceId/confirm", c.TransferController.Confirm)
 	transfers.Post("/:referenceId/cancel", c.TransferController.Cancel)

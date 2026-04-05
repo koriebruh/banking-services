@@ -21,9 +21,30 @@ func NewTransferController(log *logrus.Logger, transferUseCase *usecase.Transfer
 	return &TransferController{Log: log, TransferUseCase: transferUseCase}
 }
 
+func (c *TransferController) TopUp(ctx *fiber.Ctx) error {
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
+
+	req := new(model.TopUpRequest)
+	if err := ctx.BodyParser(req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(
+			response.Error("Invalid request body", correlationID),
+		)
+	}
+
+	resp, err := c.TransferUseCase.TopUp(ctx.Context(), userID, req)
+	if err != nil {
+		return c.handleError(ctx, err, correlationID)
+	}
+
+	return ctx.Status(fiber.StatusCreated).JSON(
+		response.Success("Top up successful", resp, correlationID),
+	)
+}
+
 func (c *TransferController) Initiate(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 
 	req := new(model.InitiateTransferRequest)
 	if err := ctx.BodyParser(req); err != nil {
@@ -43,8 +64,8 @@ func (c *TransferController) Initiate(ctx *fiber.Ctx) error {
 }
 
 func (c *TransferController) Confirm(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 	referenceID := ctx.Params("referenceId")
 
 	resp, err := c.TransferUseCase.Confirm(ctx.Context(), userID, referenceID)
@@ -58,8 +79,8 @@ func (c *TransferController) Confirm(ctx *fiber.Ctx) error {
 }
 
 func (c *TransferController) Cancel(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 	referenceID := ctx.Params("referenceId")
 
 	req := new(model.CancelTransferRequest)
@@ -78,8 +99,8 @@ func (c *TransferController) Cancel(ctx *fiber.Ctx) error {
 }
 
 func (c *TransferController) GetDetail(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 	referenceID := ctx.Params("referenceId")
 
 	resp, err := c.TransferUseCase.GetDetail(ctx.Context(), userID, referenceID)
@@ -93,8 +114,8 @@ func (c *TransferController) GetDetail(ctx *fiber.Ctx) error {
 }
 
 func (c *TransferController) GetMyTransfers(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 
 	params := &model.TransferQueryParams{
 		Status: ctx.Query("status"),
@@ -120,8 +141,8 @@ func (c *TransferController) GetMyTransfers(ctx *fiber.Ctx) error {
 }
 
 func (c *TransferController) GetAccountHistory(ctx *fiber.Ctx) error {
-	correlationID := ctx.Locals("correlationId").(string)
-	userID := ctx.Locals("userId").(uuid.UUID)
+	correlationID, _ := ctx.Locals("correlationId").(string)
+	userID, _ := ctx.Locals("userId").(uuid.UUID)
 	accountNumber := ctx.Params("accountNumber")
 
 	params := &model.TransferQueryParams{

@@ -43,14 +43,20 @@ public class TransferEventConsumer {
         TransferEvent event = record.value();
         log.info("Received transfer.event referenceId={}", event.getReferenceId());
 
-        balanceLedgerRepository.existsByReferenceId(event.getReferenceId())
+        balanceLedgerRepository.existsByReferenceId(event.getReferenceId() + ":credit")
                 .flatMap(exists -> {
                     if (exists) {
                         log.warn("Duplicate transfer.event skipped referenceId={}", event.getReferenceId());
                         return Mono.empty();
                     }
-                    return processDebit(event)
-                            .then(processCredit(event));
+
+                    // TOP_UP — source EXTERNAL, skip debit
+                    if ("EXTERNAL".equals(event.getSourceAccountNumber())) {
+                        log.info("TOP_UP detected referenceId={}, skipping debit", event.getReferenceId());
+                        return processCredit(event);
+                    }
+
+                    return processDebit(event).then(processCredit(event));
                 })
                 .as(transactionalOperator::transactional)
                 .subscribeOn(Schedulers.boundedElastic())

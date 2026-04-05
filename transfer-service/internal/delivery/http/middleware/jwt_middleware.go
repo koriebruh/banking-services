@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang-clean-architecture/internal/shared/response" // Sesuaikan path ini
+	"golang-clean-architecture/internal/shared/response"
 	"os"
 	"strings"
 
@@ -17,10 +17,10 @@ import (
 )
 
 type Claims struct {
-	UserID   string `json:"user_id"`
-	UserCode string `json:"user_code"`
-	Role     string `json:"role"`
-	jwt.RegisteredClaims
+	Roles                []string `json:"roles"`
+	UserCode             string   `json:"userCode"`
+	Type                 string   `json:"type"`
+	jwt.RegisteredClaims          // Subject (sub) = userId
 }
 
 var publicKey *rsa.PublicKey
@@ -44,7 +44,6 @@ func LoadPublicKey(v *viper.Viper, log *logrus.Logger) error {
 
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		// Kalau gagal pake PKIX, coba pake PKCS1 (siapa tau ganti key nanti)
 		pub, err = x509.ParsePKCS1PublicKey(block.Bytes)
 		if err != nil {
 			log.Errorf("Gagal total parsing public key: %v", err)
@@ -64,10 +63,9 @@ func LoadPublicKey(v *viper.Viper, log *logrus.Logger) error {
 
 func JWTProtected(log *logrus.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Helper buat ambil correlation_id biar gak panic pas casting
-		correlationID, ok := c.Locals("correlation_id").(string)
+		correlationID, ok := c.Locals("correlationId").(string)
 		if !ok {
-			correlationID = "" // Fallback kalau middleware correlationID belum jalan
+			correlationID = ""
 		}
 
 		authHeader := c.Get("Authorization")
@@ -85,14 +83,12 @@ func JWTProtected(log *logrus.Logger) fiber.Handler {
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
 		token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-			// Validasi algoritmanya harus RSA
 			if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 			}
 			return publicKey, nil
 		})
 
-		// Handle error token (expired, malformed, invalid signature)
 		if err != nil || !token.Valid {
 			log.WithFields(logrus.Fields{
 				"correlation_id": correlationID,
@@ -115,17 +111,33 @@ func JWTProtected(log *logrus.Logger) fiber.Handler {
 			)
 		}
 
-		// Logging success (Optional: Debug level biar gak menuhin log)
+		// userId dari sub
+		uid, err := uuid.Parse(claims.Subject)
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"correlation_id": correlationID,
+			}).Error("Failed to parse userId from sub claim")
+
+			return c.Status(fiber.StatusUnauthorized).JSON(
+				response.Error("Invalid token claims", correlationID),
+			)
+		}
+
+		// role ambil index 0
+		role := ""
+		if len(claims.Roles) > 0 {
+			role = claims.Roles[0]
+		}
+
+		// log pakai userCode — non-sensitive
 		log.WithFields(logrus.Fields{
 			"correlation_id": correlationID,
-			"user_id":        claims.UserID,
+			"user_code":      claims.UserCode,
 		}).Debug("JWT Authentication successful")
 
-		// Store in locals. Pake UUID buat UserID sesuai entity lo biasanya.
-		uid, _ := uuid.Parse(claims.UserID)
 		c.Locals("userId", uid)
 		c.Locals("userCode", claims.UserCode)
-		c.Locals("role", claims.Role)
+		c.Locals("role", role)
 
 		return c.Next()
 	}

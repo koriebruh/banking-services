@@ -13,6 +13,44 @@ import (
 // REQUEST DTOs
 // ------------------------------------
 
+type TopUpRequest struct {
+	TargetAccountNumber string          `json:"target_account_number" validate:"required,len=10,numeric"`
+	Amount              decimal.Decimal `json:"amount"                validate:"required,gt=0"`
+	Currency            string          `json:"currency"              validate:"required,len=3,uppercase"`
+	Description         *string         `json:"description"           validate:"omitempty,max=255"`
+}
+
+type TopUpResponse struct {
+	ReferenceID         string          `json:"reference_id"`
+	Status              string          `json:"status"`
+	TargetAccountNumber string          `json:"target_account_number"`
+	Amount              decimal.Decimal `json:"amount"`
+	Currency            string          `json:"currency"`
+	Description         *string         `json:"description"`
+	SettledAt           *time.Time      `json:"settled_at"`
+}
+
+func (r *TopUpRequest) ToEntity(userID uuid.UUID) *entity.Transfer {
+	desc := r.Description
+	settledAt := time.Now().UTC()
+	return &entity.Transfer{
+		ID:                  uuid.New(),
+		ReferenceID:         generateReferenceID(),
+		UserID:              userID,
+		TransferType:        entity.TransferTypeTopUp,
+		Status:              entity.TransferStatusCompleted, // langsung COMPLETED
+		SourceAccountNumber: "EXTERNAL",
+		TargetAccountNumber: r.TargetAccountNumber,
+		Amount:              r.Amount,
+		SourceCurrency:      r.Currency,
+		TargetCurrency:      r.Currency,
+		Description:         desc,
+		SettledAt:           &settledAt,
+		CreatedAt:           time.Now().UTC(),
+		UpdatedAt:           time.Now().UTC(),
+	}
+}
+
 type InitiateTransferRequest struct {
 	SourceAccountNumber string          `json:"source_account_number" validate:"required,len=10,numeric"`
 	TargetAccountNumber string          `json:"target_account_number" validate:"required,len=10,numeric,nefield=SourceAccountNumber"`

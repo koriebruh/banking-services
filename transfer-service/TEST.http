@@ -1,0 +1,90 @@
+// INITT
+@host = http://localhost:8083/api/v1
+@correlationId = test-004
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItREVNTy0xIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAzIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6ImI1ZmQ5NzU3LWM4MTEtNDJjZC1hOGE0LWY3ZmI1NDRhZDEyZCIsImlhdCI6MTc3NTQwMDg3MSwiZXhwIjoxNzc1NDAxNzcxfQ.dwSk8dQPpJv25R6Ab1vTB_tA3Fd5T6F6GD9Duu6-9MZANLqnsK0AukthuMX6DpXZjfX8q-3xeFvFHoNahTdrXSV2L4NKmGL6mZQi_OVv9x1qJIUV0W3t70eax038S2MGP9RtGsneYDGtEcyEdgxl-h985TKaRbfgSgHkNZ2Q5xunOUEZxuskXCrap8NH4BXOTDGXXrzWFdRsG3-zLOo611AN4w9SUT31Dqi0f1q3R_LRTVDAfmXed2yg1aLVHPSaw_CnCpuMWQEju9LGAJLIaajqAhUvYk9TzQLkar9QWBGT8upXjPj9gTgU_crXtBv7Dexsy_ZMPohhw1utX-XRvw
+
+@referenceId = TXN-20260403-a1b2c3
+@accountNumber = 9240355345
+
+### Top Up
+POST {{host}}/transfers/topup
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "target_account_number": "9240355345",
+  "amount": "9100000",
+  "currency": "IDR",
+  "description": "top up saldo"
+}
+
+### Initiate Transfer
+POST {{host}}/transfers
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "source_account_number": "1234567890",
+  "target_account_number": "0987654321",
+  "amount": "500000",
+  "source_currency": "IDR",
+  "target_currency": "IDR",
+  "description": "bayar utang"
+}
+
+### Confirm Transfer
+POST {{host}}/transfers/{{referenceId}}/confirm
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+### Cancel Transfer
+POST {{host}}/transfers/{{referenceId}}/cancel
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "reason": "salah input nominal"
+}
+
+### Get My Transfers
+GET {{host}}/transfers
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+### Get My Transfers - dengan filter
+GET {{host}}/transfers?status=COMPLETED&from=2026-01-01&to=2026-12-31&page=0&size=20
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+### Get Transfer Detail
+GET {{host}}/transfers/{{referenceId}}
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+### Get Account History
+GET {{host}}/transfers/accounts/{{accountNumber}}/history
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+### Get Account History - dengan filter
+GET {{host}}/transfers/accounts/{{accountNumber}}/history?from=2026-01-01&to=2026-12-31&page=0&size=20
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}

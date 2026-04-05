@@ -67,20 +67,29 @@ public class AccountGrpcServiceImpl extends AccountGrpcServiceGrpc.AccountGrpcSe
     public void getAccountDetail(GetAccountDetailRequest request,
                                  StreamObserver<AccountDetailResponse> responseObserver) {
         accountRepository.findByAccountNumber(request.getAccountNumber())
+                .map(account -> AccountDetailResponse.newBuilder()
+                        .setAccountId(account.getId().toString())
+                        .setAccountNumber(account.getAccountNumber())
+                        .setUserId(account.getUserId().toString())
+                        .setAccountType(account.getAccountType().name())
+                        .setStatus(account.getStatus().name())
+                        .setBalance(account.getBalance().toPlainString())
+                        .setCurrency(account.getCurrency())
+                        .build()
+                )
+                .defaultIfEmpty(AccountDetailResponse.getDefaultInstance())
                 .subscribe(
-                        account -> {
-                            responseObserver.onNext(
-                                    AccountDetailResponse.newBuilder()
-                                            .setAccountId(account.getId().toString())
-                                            .setAccountNumber(account.getAccountNumber())
-                                            .setUserId(account.getUserId().toString())
-                                            .setAccountType(account.getAccountType().name())
-                                            .setStatus(account.getStatus().name())
-                                            .setBalance(account.getBalance().toPlainString())
-                                            .setCurrency(account.getCurrency())
-                                            .build()
-                            );
-                            responseObserver.onCompleted();
+                        response -> {
+                            if (response == AccountDetailResponse.getDefaultInstance()) {
+                                responseObserver.onError(
+                                        Status.NOT_FOUND
+                                                .withDescription("Account not found: " + request.getAccountNumber())
+                                                .asRuntimeException()
+                                );
+                            } else {
+                                responseObserver.onNext(response);
+                                responseObserver.onCompleted();
+                            }
                         },
                         error -> {
                             log.error("[gRPC] getAccountDetail error: {}", error.getMessage());
@@ -89,12 +98,7 @@ public class AccountGrpcServiceImpl extends AccountGrpcServiceGrpc.AccountGrpcSe
                                             .withDescription(error.getMessage())
                                             .asRuntimeException()
                             );
-                        },
-                        () -> responseObserver.onError(
-                                Status.NOT_FOUND
-                                        .withDescription("Account not found: " + request.getAccountNumber())
-                                        .asRuntimeException()
-                        )
+                        }
                 );
     }
 }

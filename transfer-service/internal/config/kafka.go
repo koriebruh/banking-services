@@ -17,7 +17,7 @@ func NewKafkaProducer(config *viper.Viper, log *logrus.Logger) sarama.SyncProduc
 	saramaConfig.Net.MaxOpenRequests = 1
 	saramaConfig.Producer.Compression = sarama.CompressionSnappy
 
-	brokers := strings.Split(config.GetString("kafka.bootstrap-servers"), ",")
+	brokers := strings.Split(config.GetString("kafka.bootstrap.servers"), ",")
 
 	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
 	if err != nil {

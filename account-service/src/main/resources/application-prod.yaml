@@ -51,7 +51,7 @@ spring:
 logging:
   level:
     root: WARN
-    com.koriebruh.authservice: INFO
+    com.koriebruh.accountservice: INFO
     org.springframework: WARN
     io.r2dbc: WARN
     org.flywaydb: INFO

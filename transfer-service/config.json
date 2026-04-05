@@ -4,7 +4,7 @@
   },
   "web": {
     "prefork": false,
-    "port": 3000
+    "port": 8083
   },
   "log": {
     "level": 6
@@ -13,7 +13,7 @@
     "public_key_path": "secrets/public.pem"
   },
   "grpc": {
-    "server": 9091
+    "server": "localhost:9091"
   },
   "database": {
     "username": "transfer_user",
@@ -41,7 +41,7 @@
     },
     "producer": {
       "enabled": true,
-      "topic": "transfer-events"
+      "topic": "transfer.events"
     }
   }
 }

@@ -1,0 +1,41 @@
+@correlationId = test-004
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItREVNTy0xIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAzIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6ImI1ZmQ5NzU3LWM4MTEtNDJjZC1hOGE0LWY3ZmI1NDRhZDEyZCIsImlhdCI6MTc3NTQwMDg3MSwiZXhwIjoxNzc1NDAxNzcxfQ.dwSk8dQPpJv25R6Ab1vTB_tA3Fd5T6F6GD9Duu6-9MZANLqnsK0AukthuMX6DpXZjfX8q-3xeFvFHoNahTdrXSV2L4NKmGL6mZQi_OVv9x1qJIUV0W3t70eax038S2MGP9RtGsneYDGtEcyEdgxl-h985TKaRbfgSgHkNZ2Q5xunOUEZxuskXCrap8NH4BXOTDGXXrzWFdRsG3-zLOo611AN4w9SUT31Dqi0f1q3R_LRTVDAfmXed2yg1aLVHPSaw_CnCpuMWQEju9LGAJLIaajqAhUvYk9TzQLkar9QWBGT8upXjPj9gTgU_crXtBv7Dexsy_ZMPohhw1utX-XRvw
+
+
+
+
+### LOGIN ACC 1
+POST http://localhost:8081/api/v1/auth/login
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+
+{
+  "email": "maya.kartika.sari@example.com",
+  "password": "Test@1234"
+}
+
+###
+//{
+//  "email": "teller@bank.local",
+//  "password": "Test@1234"
+//}
+
+
+### CREATE DEPOSIT
+POST http://localhost:8082/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "account_type": "CURRENT"
+}
+
+### GET ACCOUNT
+GET http://localhost:8082/api/v1/accounts
+Accept: application/json
+Content-Type: application/json
+X-Correlation-ID: {{correlationId}}
+Authorization: Bearer {{accessToken}}
