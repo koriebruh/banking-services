@@ -4,6 +4,7 @@ import (
 	"golang-clean-architecture/internal/delivery/http"
 	"golang-clean-architecture/internal/delivery/http/middleware"
 	"golang-clean-architecture/internal/delivery/http/route"
+	"golang-clean-architecture/internal/gateway/grpc"
 	"golang-clean-architecture/internal/gateway/messaging"
 	"golang-clean-architecture/internal/repository"
 	"golang-clean-architecture/internal/usecase"
@@ -17,50 +18,43 @@ import (
 )
 
 type BootstrapConfig struct {
-	DB       *gorm.DB
-	App      *fiber.App
-	Log      *logrus.Logger
-	Validate *validator.Validate
-	Config   *viper.Viper
-	Producer sarama.SyncProducer
+	DB            *gorm.DB
+	App           *fiber.App
+	Log           *logrus.Logger
+	Validate      *validator.Validate
+	Config        *viper.Viper
+	KafkaProducer sarama.SyncProducer
+	Grpc          *grpc.AccountGrpcClient
 }
 
 func Bootstrap(config *BootstrapConfig) {
-	// setup repositories
-	userRepository := repository.NewUserRepository(config.Log)
-	contactRepository := repository.NewContactRepository(config.Log)
-	addressRepository := repository.NewAddressRepository(config.Log)
-
-	// setup producer
-	var userProducer *messaging.UserProducer
-	var contactProducer *messaging.ContactProducer
-	var addressProducer *messaging.AddressProducer
-
-	if config.Producer != nil {
-		userProducer = messaging.NewUserProducer(config.Producer, config.Log)
-		contactProducer = messaging.NewContactProducer(config.Producer, config.Log)
-		addressProducer = messaging.NewAddressProducer(config.Producer, config.Log)
+	// LOAD PUBLIC KEY FOR JWT
+	if err := middleware.LoadPublicKey(config.Config, config.Log); err != nil {
+		config.Log.Fatalf("Failed to load JWT public key: %v", err)
 	}
 
-	// setup use cases
-	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository, userProducer)
-	contactUseCase := usecase.NewContactUseCase(config.DB, config.Log, config.Validate, contactRepository, contactProducer)
-	addressUseCase := usecase.NewAddressUseCase(config.DB, config.Log, config.Validate, contactRepository, addressRepository, addressProducer)
+	// INIT
+	publisher := messaging.NewTransferEventPublisher(config.KafkaProducer, config.Log, config.Config)
+	transferRepository := repository.NewTransferRepository(config.Log)
+	transferUseCase := usecase.NewTransferUseCase(
+		config.DB,
+		config.Log,
+		config.Validate,
+		transferRepository,
+		publisher,
+		config.Grpc,
+	)
+	transferController := http.NewTransferController(config.Log, transferUseCase)
 
-	// setup controller
-	userController := http.NewUserController(userUseCase, config.Log)
-	contactController := http.NewContactController(contactUseCase, config.Log)
-	addressController := http.NewAddressController(addressUseCase, config.Log)
-
-	// setup middleware
-	authMiddleware := middleware.NewAuth(userUseCase)
+	// MIDDLEWARE
+	correlationIdMiddleware := middleware.CorrelationID(config.Log)
+	jwtMiddleware := middleware.JWTProtected(config.Log)
 
 	routeConfig := route.RouteConfig{
-		App:               config.App,
-		UserController:    userController,
-		ContactController: contactController,
-		AddressController: addressController,
-		AuthMiddleware:    authMiddleware,
+		App:                     config.App,
+		TransferController:      transferController,
+		CorrelationIdMiddleware: correlationIdMiddleware,
+		JwtMiddleware:           jwtMiddleware,
 	}
 	routeConfig.Setup()
 }

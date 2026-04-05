@@ -1,6 +1,8 @@
 package config
 
 import (
+	"golang-clean-architecture/internal/shared/response"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/viper"
 )
@@ -22,8 +24,9 @@ func NewErrorHandler() fiber.ErrorHandler {
 			code = e.Code
 		}
 
-		return ctx.Status(code).JSON(fiber.Map{
-			"errors": err.Error(),
-		})
+		return ctx.Status(code).JSON(
+			response.Error(err.Error(), ctx.Locals("correlation_id").(string)),
+		)
+
 	}
 }

@@ -7,38 +7,29 @@ import (
 )
 
 type RouteConfig struct {
-	App               *fiber.App
-	UserController    *http.UserController
-	ContactController *http.ContactController
-	AddressController *http.AddressController
-	AuthMiddleware    fiber.Handler
+	App                     *fiber.App
+	TransferController      *http.TransferController
+	CorrelationIdMiddleware fiber.Handler
+	JwtMiddleware           fiber.Handler
 }
 
 func (c *RouteConfig) Setup() {
-	c.SetupGuestRoute()
-	c.SetupAuthRoute()
+	c.SetupRoute()
 }
 
-func (c *RouteConfig) SetupGuestRoute() {
-	c.App.Post("/api/users", c.UserController.Register)
-	c.App.Post("/api/users/_login", c.UserController.Login)
-}
+func (c *RouteConfig) SetupRoute() {
+	// CONNECT WITH MIDDLEWARE
+	c.App.Use(c.CorrelationIdMiddleware)
+	c.App.Use(c.JwtMiddleware)
+	v1 := c.App.Group("/api/v1")
 
-func (c *RouteConfig) SetupAuthRoute() {
-	c.App.Use(c.AuthMiddleware)
-	c.App.Delete("/api/users", c.UserController.Logout)
-	c.App.Patch("/api/users/_current", c.UserController.Update)
-	c.App.Get("/api/users/_current", c.UserController.Current)
+	// LIST OF ROUTE --
+	transfers := v1.Group("/transfers", c.JwtMiddleware)
+	transfers.Post("/", c.TransferController.Initiate)
+	transfers.Post("/:referenceId/confirm", c.TransferController.Confirm)
+	transfers.Post("/:referenceId/cancel", c.TransferController.Cancel)
+	transfers.Get("/", c.TransferController.GetMyTransfers)
+	transfers.Get("/:referenceId", c.TransferController.GetDetail)
+	transfers.Get("/accounts/:accountNumber/history", c.TransferController.GetAccountHistory)
 
-	c.App.Get("/api/contacts", c.ContactController.List)
-	c.App.Post("/api/contacts", c.ContactController.Create)
-	c.App.Put("/api/contacts/:contactId", c.ContactController.Update)
-	c.App.Get("/api/contacts/:contactId", c.ContactController.Get)
-	c.App.Delete("/api/contacts/:contactId", c.ContactController.Delete)
-
-	c.App.Get("/api/contacts/:contactId/addresses", c.AddressController.List)
-	c.App.Post("/api/contacts/:contactId/addresses", c.AddressController.Create)
-	c.App.Put("/api/contacts/:contactId/addresses/:addressId", c.AddressController.Update)
-	c.App.Get("/api/contacts/:contactId/addresses/:addressId", c.AddressController.Get)
-	c.App.Delete("/api/contacts/:contactId/addresses/:addressId", c.AddressController.Delete)
 }

@@ -12,14 +12,16 @@ func main() {
 	validate := config.NewValidator(viperConfig)
 	app := config.NewFiber(viperConfig)
 	producer := config.NewKafkaProducer(viperConfig, log)
+	grpc := config.NewGrpc(viperConfig, log)
 
 	config.Bootstrap(&config.BootstrapConfig{
-		DB:       db,
-		App:      app,
-		Log:      log,
-		Validate: validate,
-		Config:   viperConfig,
-		Producer: producer,
+		DB:            db,
+		App:           app,
+		Log:           log,
+		Validate:      validate,
+		Config:        viperConfig,
+		KafkaProducer: producer,
+		Grpc:          grpc,
 	})
 
 	webPort := viperConfig.GetInt("web.port")

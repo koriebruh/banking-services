@@ -1,6 +1,9 @@
 package response
 
-import "time"
+import (
+	"golang-clean-architecture/internal/model"
+	"time"
+)
 
 var (
 	ServiceName = "transfer-service"
@@ -12,7 +15,7 @@ type ApiResponse[T any] struct {
 	Message    string            `json:"message,omitempty"`
 	Data       *T                `json:"data,omitempty"`
 	Errors     map[string]string `json:"errors,omitempty"`
-	Pagination *Pagination       `json:"pagination,omitempty"`
+	Pagination *model.Pagination `json:"pagination,omitempty"`
 	Meta       Meta              `json:"meta"`
 }
 

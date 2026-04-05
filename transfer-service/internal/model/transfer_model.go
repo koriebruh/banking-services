@@ -111,3 +111,33 @@ type TransferHistoryItem struct {
 	Status                   string          `json:"status"`
 	SettledAt                *time.Time      `json:"settled_at"`
 }
+
+type TransferListResponse struct {
+	Data       []TransferDetailResponse `json:"data"`
+	Pagination Pagination               `json:"pagination"`
+}
+
+type TransferHistoryResponse struct {
+	AccountNumber string                `json:"account_number"`
+	Data          []TransferHistoryItem `json:"data"`
+	Pagination    Pagination            `json:"pagination"`
+}
+
+// ------------------------------------
+// SHARED
+// ------------------------------------
+
+type TransferQueryParams struct {
+	Status string `form:"status"`
+	From   string `form:"from"`
+	To     string `form:"to"`
+	Page   int    `form:"page,default=0"`
+	Size   int    `form:"size,default=20"`
+}
+
+type Pagination struct {
+	Page       int   `json:"page"`
+	Limit      int   `json:"limit"`
+	TotalItems int64 `json:"total_items"`
+	TotalPages int64 `json:"total_pages"`
+}
