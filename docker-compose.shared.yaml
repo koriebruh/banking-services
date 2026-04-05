@@ -29,7 +29,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -47,7 +47,7 @@ services:
       - shared-network
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
   kafka-init:
     image: confluentinc/cp-kafka:7.7.1
@@ -60,9 +60,9 @@ services:
     entrypoint: [ "/bin/sh", "-c" ]
     command: |
       "
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic auth.events --partitions 10 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic account.events --partitions 10 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic transfer.events --partitions 10 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092  --create --if-not-exists --topic auth.events --partitions 10 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092  --create --if-not-exists --topic account.events --partitions 10 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092  --create --if-not-exists --topic transfer.events --partitions 10 --replication-factor 1
       echo 'All topics created!'
       "
 
