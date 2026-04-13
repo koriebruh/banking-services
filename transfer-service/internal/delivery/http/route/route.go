@@ -2,8 +2,9 @@ package route
 
 import (
 	"golang-clean-architecture/internal/delivery/http"
+	"golang-clean-architecture/internal/telemetry"
 
-	"github.com/ansrivas/fiberprometheus/v2"
+	"github.com/gofiber/contrib/otelfiber"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -13,7 +14,7 @@ type RouteConfig struct {
 	HealthController        *http.HealthController
 	CorrelationIdMiddleware fiber.Handler
 	JwtMiddleware           fiber.Handler
-	PrometheusMiddleware    *fiberprometheus.FiberPrometheus
+	Telemetry               *telemetry.Providers
 }
 
 func (c *RouteConfig) Setup() {
@@ -21,12 +22,12 @@ func (c *RouteConfig) Setup() {
 }
 
 func (c *RouteConfig) SetupRoute() {
+	// OPEN TELEMETRY
+	c.App.Use(otelfiber.Middleware())
+
+	// HEALTH CHECK
 	c.App.Get("/health", c.HealthController.Health)
 	c.App.Get("/health/ready", c.HealthController.DbConnection)
-
-	// MATRIC MIDDLEWARE
-	c.App.Use(c.PrometheusMiddleware.Middleware)
-	c.PrometheusMiddleware.RegisterAt(c.App, "/metrics")
 
 	// CONNECT WITH MIDDLEWARE
 	c.App.Use(c.CorrelationIdMiddleware)

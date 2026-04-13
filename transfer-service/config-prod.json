@@ -15,6 +15,10 @@
   "grpc": {
     "server": "account-service:9091"
   },
+  "telemetry": {
+    "enabled": true,
+    "endpoint": "otel-collector:4317"
+  },
   "database": {
     "username": "${DB_USERNAME}",
     "password": "${DB_PASSWORD}",

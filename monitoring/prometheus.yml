@@ -22,17 +22,7 @@ scrape_configs:
     static_configs:
       - targets: ["account-service:8082"]
 
+  # GO SERVICE
   - job_name: "transfer-service"
-    metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ["transfer-service:8083"]
-
-  - job_name: "notif-service"
-    metrics_path: "/actuator/prometheus"
-    static_configs:
-      - targets: ["notif-service:8084"]
-
-  - job_name: "audit-service"
-    metrics_path: "/actuator/prometheus"
-    static_configs:
-      - targets: ["audit-service:8085"]
+      - targets: [ "otel-collector:8889" ]

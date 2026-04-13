@@ -17,3 +17,12 @@ go get google.golang.org/protobuf
 
 protoc --proto_path=internal/gateway/grpc/proto --go_out=paths=source_relative:internal/gateway/grpc/pb --go-grpc_out=paths=source_relative:internal/gateway/grpc/pb internal/gateway/grpc/proto/account.proto
 
+# otelemetry
+
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/sdk/trace
+go get go.opentelemetry.io/otel/sdk/metric
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+go get go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+go get github.com/gofiber/contrib/otelfiber
+go get go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc

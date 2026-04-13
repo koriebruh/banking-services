@@ -7,10 +7,10 @@ import (
 	"golang-clean-architecture/internal/gateway/grpc"
 	"golang-clean-architecture/internal/gateway/messaging"
 	"golang-clean-architecture/internal/repository"
+	"golang-clean-architecture/internal/telemetry"
 	"golang-clean-architecture/internal/usecase"
 
 	"github.com/IBM/sarama"
-	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
@@ -26,46 +26,43 @@ type BootstrapConfig struct {
 	Config        *viper.Viper
 	KafkaProducer sarama.SyncProducer
 	Grpc          *grpc.AccountGrpcClient
+	Telemetry     *telemetry.Providers
 }
 
-func Bootstrap(config *BootstrapConfig) {
+func Bootstrap(cfg *BootstrapConfig) {
 	// LOAD PUBLIC KEY FOR JWT
-	if err := middleware.LoadPublicKey(config.Config, config.Log); err != nil {
-		config.Log.Fatalf("Failed to load JWT public key: %v", err)
+	if err := middleware.LoadPublicKey(cfg.Config, cfg.Log); err != nil {
+		cfg.Log.Fatalf("Failed to load JWT public key: %v", err)
 	}
 
 	// INIT
-	publisher := messaging.NewTransferEventPublisher(config.KafkaProducer, config.Log, config.Config)
-	transferRepository := repository.NewTransferRepository(config.Log)
+	publisher := messaging.NewTransferEventPublisher(cfg.KafkaProducer, cfg.Log, cfg.Config)
+	transferRepository := repository.NewTransferRepository(cfg.Log)
 	transferUseCase := usecase.NewTransferUseCase(
-		config.DB,
-		config.Log,
-		config.Validate,
+		cfg.DB,
+		cfg.Log,
+		cfg.Validate,
 		transferRepository,
 		publisher,
-		config.Grpc,
+		cfg.Grpc,
 	)
-	transferController := http.NewTransferController(config.Log, transferUseCase)
+	transferController := http.NewTransferController(cfg.Log, transferUseCase)
 
 	// HEALTH
-	healthController := http.NewHealthController(config.Log, config.DB)
+	healthController := http.NewHealthController(cfg.Log, cfg.DB)
 
 	// MIDDLEWARE
-	correlationIdMiddleware := middleware.CorrelationID(config.Log)
-	jwtMiddleware := middleware.JWTProtected(config.Log)
+	correlationIdMiddleware := middleware.CorrelationID(cfg.Log)
+	jwtMiddleware := middleware.JWTProtected(cfg.Log)
 
-	// Prometheus Metric Middleware
-	prometheus := fiberprometheus.New(
-		config.Config.GetString("app.name"),
-	)
-
+	//
 	routeConfig := route.RouteConfig{
-		App:                     config.App,
+		App:                     cfg.App,
 		TransferController:      transferController,
 		HealthController:        healthController,
 		CorrelationIdMiddleware: correlationIdMiddleware,
 		JwtMiddleware:           jwtMiddleware,
-		PrometheusMiddleware:    prometheus,
+		Telemetry:               cfg.Telemetry,
 	}
 	routeConfig.Setup()
 }

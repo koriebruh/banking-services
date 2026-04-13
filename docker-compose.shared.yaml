@@ -130,6 +130,18 @@ services:
       timeout: 5s
       retries: 3
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    volumes:
+      - ./otel-collector.yml:/etc/otel-collector.yml
+    command: [ "--config=/etc/otel-collector.yml" ]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "8889:8889"   # Prometheus metrics scrape
+    networks:
+      - shared-network
+
   # -------------------
   # VOLUMES & NETWORKS
   # -------------------
