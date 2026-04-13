@@ -25,7 +25,7 @@ func CorrelationID(log *logrus.Logger) fiber.Handler {
 		}
 
 		c.Set("X-Correlation-ID", correlationID)
-		c.Locals("correlation_id", correlationID)
+		c.Locals("correlationId", correlationID)
 
 		log.WithFields(logrus.Fields{
 			"correlation_id": correlationID,

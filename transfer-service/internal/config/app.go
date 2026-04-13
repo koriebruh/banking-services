@@ -10,6 +10,7 @@ import (
 	"golang-clean-architecture/internal/usecase"
 
 	"github.com/IBM/sarama"
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
@@ -46,15 +47,25 @@ func Bootstrap(config *BootstrapConfig) {
 	)
 	transferController := http.NewTransferController(config.Log, transferUseCase)
 
+	// HEALTH
+	healthController := http.NewHealthController(config.Log, config.DB)
+
 	// MIDDLEWARE
 	correlationIdMiddleware := middleware.CorrelationID(config.Log)
 	jwtMiddleware := middleware.JWTProtected(config.Log)
 
+	// Prometheus Metric Middleware
+	prometheus := fiberprometheus.New(
+		config.Config.GetString("app.name"),
+	)
+
 	routeConfig := route.RouteConfig{
 		App:                     config.App,
 		TransferController:      transferController,
+		HealthController:        healthController,
 		CorrelationIdMiddleware: correlationIdMiddleware,
 		JwtMiddleware:           jwtMiddleware,
+		PrometheusMiddleware:    prometheus,
 	}
 	routeConfig.Setup()
 }

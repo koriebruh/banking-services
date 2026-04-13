@@ -3,14 +3,17 @@ package route
 import (
 	"golang-clean-architecture/internal/delivery/http"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 )
 
 type RouteConfig struct {
 	App                     *fiber.App
 	TransferController      *http.TransferController
+	HealthController        *http.HealthController
 	CorrelationIdMiddleware fiber.Handler
 	JwtMiddleware           fiber.Handler
+	PrometheusMiddleware    *fiberprometheus.FiberPrometheus
 }
 
 func (c *RouteConfig) Setup() {
@@ -18,6 +21,13 @@ func (c *RouteConfig) Setup() {
 }
 
 func (c *RouteConfig) SetupRoute() {
+	c.App.Get("/health", c.HealthController.Health)
+	c.App.Get("/health/ready", c.HealthController.DbConnection)
+
+	// MATRIC MIDDLEWARE
+	c.App.Use(c.PrometheusMiddleware.Middleware)
+	c.PrometheusMiddleware.RegisterAt(c.App, "/metrics")
+
 	// CONNECT WITH MIDDLEWARE
 	c.App.Use(c.CorrelationIdMiddleware)
 	v1 := c.App.Group("/api/v1")

@@ -1,7 +1,5 @@
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItREVNTy0xIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAzIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6ImI1ZmQ5NzU3LWM4MTEtNDJjZC1hOGE0LWY3ZmI1NDRhZDEyZCIsImlhdCI6MTc3NTQwMDg3MSwiZXhwIjoxNzc1NDAxNzcxfQ.dwSk8dQPpJv25R6Ab1vTB_tA3Fd5T6F6GD9Duu6-9MZANLqnsK0AukthuMX6DpXZjfX8q-3xeFvFHoNahTdrXSV2L4NKmGL6mZQi_OVv9x1qJIUV0W3t70eax038S2MGP9RtGsneYDGtEcyEdgxl-h985TKaRbfgSgHkNZ2Q5xunOUEZxuskXCrap8NH4BXOTDGXXrzWFdRsG3-zLOo611AN4w9SUT31Dqi0f1q3R_LRTVDAfmXed2yg1aLVHPSaw_CnCpuMWQEju9LGAJLIaajqAhUvYk9TzQLkar9QWBGT8upXjPj9gTgU_crXtBv7Dexsy_ZMPohhw1utX-XRvw
-
-
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJURUxMRVIiXSwidHlwZSI6ImFjY2VzcyIsInVzZXJDb2RlIjoiVEVMTEVSMDAxIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAyIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6IjkzODNmZDM0LTBlM2YtNDI2ZS04MGMwLTA3ZjA5NmY0Y2VlOSIsImlhdCI6MTc3NTg4MjA3NSwiZXhwIjoxNzc1ODgyOTc1fQ.h0PZOCMXRVPBAqq8WaBdUG5nLFIgedXg-QuYRxTVqsqff2481xB43LP2hOcv8tXSokiwoLXEE8Il1Z_MvXYh2DgtW3GRYEjw6XGM5Wk4G0-mqQ2d9bF7aFULP77W2HiAT7eX4D_dL_AXhZvvsy8c3eOCavkTwfAH5hmbJ_aIpin57zbVIXxnxGqsEkSH8GTZIQcDo9wSF5kVLVfI7XH7er8ZnJLBgO8paXlH1Tur6Hcmr1OO0VQo5XOHgO_g95Am3_Z6Dak9H0ASudjE2u6zYkYJ-aOOnFXaECw_b3MuBWe5SaVTgCe2f4myOcuc7IWgjTSj6RNBf7itMgvhaPF7Vw
 
 
 ### LOGIN ACC 1
@@ -11,15 +9,17 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "email": "maya.kartika.sari@example.com",
+  "email": "teller@bank.local",
   "password": "Test@1234"
 }
 
+
 ###
-//{
-//  "email": "teller@bank.local",
-//  "password": "Test@1234"
-//}
+#{
+#  "email": "maya.kartika.sari@example.com",
+#  "password": "Test@1234"
+#}
+
 
 
 ### CREATE DEPOSIT

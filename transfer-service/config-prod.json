@@ -4,16 +4,22 @@
   },
   "web": {
     "prefork": false,
-    "port": 3000
+    "port": 8083
   },
   "log": {
     "level": 6
+  },
+  "jwt": {
+    "public_key_path": "secrets/public.pem"
+  },
+  "grpc": {
+    "server": "account-service:9091"
   },
   "database": {
     "username": "${DB_USERNAME}",
     "password": "${DB_PASSWORD}",
     "host": "${DB_HOST}",
-    "port": 5434,
+    "port": 5432,
     "name": "${DB_NAME}",
     "pool": {
       "idle": 10,
@@ -34,8 +40,8 @@
       }
     },
     "producer": {
-      "enabled": false,
-      "topic": "transfer-events"
+      "enabled": true,
+      "topic": "transfer.events"
     }
   }
 }

@@ -1,10 +1,12 @@
 // INITT
 @host = http://localhost:8083/api/v1
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItREVNTy0xIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAzIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6ImI1ZmQ5NzU3LWM4MTEtNDJjZC1hOGE0LWY3ZmI1NDRhZDEyZCIsImlhdCI6MTc3NTQwMDg3MSwiZXhwIjoxNzc1NDAxNzcxfQ.dwSk8dQPpJv25R6Ab1vTB_tA3Fd5T6F6GD9Duu6-9MZANLqnsK0AukthuMX6DpXZjfX8q-3xeFvFHoNahTdrXSV2L4NKmGL6mZQi_OVv9x1qJIUV0W3t70eax038S2MGP9RtGsneYDGtEcyEdgxl-h985TKaRbfgSgHkNZ2Q5xunOUEZxuskXCrap8NH4BXOTDGXXrzWFdRsG3-zLOo611AN4w9SUT31Dqi0f1q3R_LRTVDAfmXed2yg1aLVHPSaw_CnCpuMWQEju9LGAJLIaajqAhUvYk9TzQLkar9QWBGT8upXjPj9gTgU_crXtBv7Dexsy_ZMPohhw1utX-XRvw
+#@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItREVNTy0xIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAzIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6IjdiNmQyNjFmLTQ2OTYtNDNiZS1iMWI4LTNjNWIyOWJjMmJiNyIsImlhdCI6MTc3NTg4MTg1NiwiZXhwIjoxNzc1ODgyNzU2fQ.b7mkAPbYZYiw3Ir3hvUyDKzpPyIRn_INBGb5EZX5joYudBopLMKqvZzSkKet28DuibmpNtpl7QpvDQA2EiDnZhQePRFINfnrQBexcnZBI8v8F6T641gCVSV4jD0NCn67ARQPfqiYQBLWbrwdfKVGq1f9j2fLGyZeoruAtrRjgW7OPSo_KAccWFmD7CzE0Jx3WdPbDBw9uQ3YlZvdsNfECFUeio5AuW_UV1nBB6rZVmSrZk5Dg0LrYfvMQkqL7ByXNAofq23eGoM7a_vmDuYzENEpXU1gQ1t12NUaiMIKl6L9mBBLhlvSgIYHqhyzfcnp9EKIkHp4VZ37MVqAnZ_u9A
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJURUxMRVIiXSwidHlwZSI6ImFjY2VzcyIsInVzZXJDb2RlIjoiVEVMTEVSMDAxIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAyIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6ImVjYzg2OWUyLWJhZTgtNDI2MS1hMjcyLTdlMjNkMjhkNWI2YyIsImlhdCI6MTc3NTg4Njg2MywiZXhwIjoxNzc1ODg3NzYzfQ.ngq8W1yaj5avosbLNrBaVy0eP0PUHZK60ptfNVGVECbOaHU6XeOZwB3ioJRMypvQVLpaFFHoihFaygQVgnS4Otuyw3I9ajmb2A777V7QG3nVTEd5ed94OymIb8zZ2ZR-sW7gkCHKgeaXql1ydii5gglgnYDAEdYZkPv-h3vgcQsc1IKzkQ1Td9yHMkUJ9wSEOQDRx30Hyj4tUy3t0IepVKjC0XOKCzSzWZsZPhakqNaDVVA3pgKJb12Ckjp1-S8U-NqAkk70vLZ5tSIJgRVBO5dPbZRnhifc2dNqCJ8UxiWl3uBRxU4gFtwLLtxKUCVDvV4iXJTT-45W92z-EvMatQ
 
-@referenceId = TXN-20260403-a1b2c3
-@accountNumber = 9240355345
+
+@referenceId =TXN-20260411-d26888ca
+@accountNumber = 5874967462
 
 ### Top Up
 POST {{host}}/transfers/topup
@@ -14,8 +16,8 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
 
 {
-  "target_account_number": "9240355345",
-  "amount": "9100000",
+  "target_account_number": "5874967462",
+  "amount": "10000",
   "currency": "IDR",
   "description": "top up saldo"
 }
@@ -28,8 +30,8 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
 
 {
-  "source_account_number": "1234567890",
-  "target_account_number": "0987654321",
+  "source_account_number": "9240355345",
+  "target_account_number": "5874967462",
   "amount": "500000",
   "source_currency": "IDR",
   "target_currency": "IDR",
