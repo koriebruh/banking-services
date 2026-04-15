@@ -137,7 +137,7 @@ services:
       - ./otel-collector.yml:/etc/otel-collector.yml
     command: [ "--config=/etc/otel-collector.yml" ]
     ports:
-      - "4317:4317"   # OTLP gRPC
+      - "4319:4317"   # OTLP gRPC
       - "8889:8889"   # Prometheus metrics scrape
     networks:
       - shared-network

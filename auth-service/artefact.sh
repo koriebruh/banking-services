@@ -10,3 +10,4 @@
 ./mvnw test -Dtest="com.koriebruh.authservice.**"
 
 
+./mvnw clean install -DskipTests

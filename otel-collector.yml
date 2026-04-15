@@ -2,21 +2,34 @@ receivers:
   otlp:
     protocols:
       grpc:
-        endpoint: 0.0.0.0:4317
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch:
 
 exporters:
-  jaeger:
-    endpoint: jaeger:14250
+  # Export ke Jaeger menggunakan OTLP
+  otlp/jaeger:
+    endpoint: "jaeger:4317"
     tls:
       insecure: true
+    # Jika kamu ada komponen logging/file, format harus didefinisikan
+    # Tapi untuk OTLP ke Jaeger, ini cukup:
+
+  # Export ke Prometheus (Port 8889 untuk ditarik Prometheus)
   prometheus:
-    endpoint: 0.0.0.0:8889
+    endpoint: "0.0.0.0:8889"
+    send_timestamps: true
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [jaeger]
+      processors: [batch]
+      exporters: [otlp/jaeger]
     metrics:
       receivers: [otlp]
+      processors: [batch]
       exporters: [prometheus]

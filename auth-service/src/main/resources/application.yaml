@@ -7,6 +7,8 @@ server:
 spring:
   application:
     name: auth-service
+  config:
+    import: "optional:configtree:/run/secrets/"
 
   jackson:
     property-naming-strategy: SNAKE_CASE
@@ -73,8 +75,9 @@ logging:
     org.springframework: WARN
     io.r2dbc: WARN
 
-
+# ---------------------------------------------------
 # CUSTOM CONFIGURATION
+# ---------------------------------------------------
 app:
   # SECURITY CONFIGURATION
   jwt:
@@ -130,7 +133,9 @@ springdoc:
     enabled: true
 
 
-# CONFIGURATION FOR ACTUATOR METRICS AND HEALTH CHECKS
+# ---------------------------------------------------
+# MANAGEMENT & OBSERVABILITY
+# ---------------------------------------------------
 management:
   endpoints:
     web:
@@ -141,6 +146,20 @@ management:
     health:
       show-details: when-authorized
       show-components: when-authorized
-  info:
-    env:
-      enabled: false
+
+  # Tracing (New Spring 4 Namespace)
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: "http://localhost:4317"
+
+  # Metrics (Micrometer OTLP Namespace)
+  otlp:
+    metrics:
+      export:
+        url: "http://localhost:4318/v1/metrics"
+
+  tracing:
+    sampling:
+      probability: 1.0
