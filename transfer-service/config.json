@@ -17,7 +17,7 @@
   },
   "telemetry": {
     "enabled": false,
-    "endpoint": "localhost:4318"
+    "endpoint": "localhost:4319"
   },
   "database": {
     "username": "transfer_user",
