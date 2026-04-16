@@ -8,11 +8,17 @@
 @referenceId =TXN-20260411-d26888ca
 @accountNumber = 5874967462
 
+# di-generate dari sisi Frontend Client
+# (Aplikasi Mobile Android/iOS, Website, atau server partner B2B Anda), bukan dari sisi Backend.
+@X-Idempotency-Key = 5874967462 
+
+
 ### Top Up
 POST {{host}}/transfers/topup
 Accept: application/json
 Content-Type: application/json
 X-Correlation-ID: {{correlationId}}
+X-Idempotency-Key: {{X-Idempotency-Key}}
 Authorization: Bearer {{accessToken}}
 
 {
@@ -26,6 +32,7 @@ Authorization: Bearer {{accessToken}}
 POST {{host}}/transfers
 Accept: application/json
 Content-Type: application/json
+X-Idempotency-Key: {{X-Idempotency-Key}}
 X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
 

@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TransferRepository struct {
@@ -25,6 +27,12 @@ func (r *TransferRepository) FindByReferenceID(db *gorm.DB, referenceID string) 
 	return &transfer, err
 }
 
+func (r *TransferRepository) FindByReferenceIDLocked(db *gorm.DB, referenceID string) (*entity.Transfer, error) {
+	var transfer entity.Transfer
+	err := db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("reference_id = ?", referenceID).Take(&transfer).Error
+	return &transfer, err
+}
+
 func (r *TransferRepository) FindByUserID(db *gorm.DB, userID string, status string, from, to time.Time, offset, limit int) ([]entity.Transfer, int64, error) {
 	var transfers []entity.Transfer
 	var total int64
@@ -41,11 +49,20 @@ func (r *TransferRepository) FindByUserID(db *gorm.DB, userID string, status str
 		query = query.Where("created_at <= ?", to)
 	}
 
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	g := new(errgroup.Group)
 
-	if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&transfers).Error; err != nil {
+	countQuery := query.Session(&gorm.Session{})
+	findQuery := query.Session(&gorm.Session{})
+
+	g.Go(func() error {
+		return countQuery.Count(&total).Error
+	})
+
+	g.Go(func() error {
+		return findQuery.Order("created_at DESC").Offset(offset).Limit(limit).Find(&transfers).Error
+	})
+
+	if err := g.Wait(); err != nil {
 		return nil, 0, err
 	}
 
@@ -67,11 +84,20 @@ func (r *TransferRepository) FindByAccountNumber(db *gorm.DB, accountNumber stri
 		query = query.Where("created_at <= ?", to)
 	}
 
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	g := new(errgroup.Group)
 
-	if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&transfers).Error; err != nil {
+	countQuery := query.Session(&gorm.Session{})
+	findQuery := query.Session(&gorm.Session{})
+
+	g.Go(func() error {
+		return countQuery.Count(&total).Error
+	})
+
+	g.Go(func() error {
+		return findQuery.Order("created_at DESC").Offset(offset).Limit(limit).Find(&transfers).Error
+	})
+
+	if err := g.Wait(); err != nil {
 		return nil, 0, err
 	}
 

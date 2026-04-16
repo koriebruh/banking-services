@@ -33,7 +33,7 @@ const (
 // stores internal balance mutations, not the full transfer context.
 type Transfer struct {
 	ID           uuid.UUID      `gorm:"column:id;primaryKey"`
-	ReferenceID  string         `gorm:"column:reference_id"` // idempotency key, format: TXN-{YYYYMMDD}-{UUID8}
+	ReferenceID  string         `gorm:"column:reference_id;uniqueIndex"` // idempotency key, format: TXN-{YYYYMMDD}-{UUID8}
 	UserID       uuid.UUID      `gorm:"column:user_id"`      // owner, from auth-service from claim with JWT
 	TransferType TransferType   `gorm:"column:transfer_type"`
 	Status       TransferStatus `gorm:"column:status"`

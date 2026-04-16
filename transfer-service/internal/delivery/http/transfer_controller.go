@@ -32,6 +32,14 @@ func (c *TransferController) TopUp(ctx *fiber.Ctx) error {
 		)
 	}
 
+	idempotencyKey := ctx.Get("X-Idempotency-Key")
+	if idempotencyKey == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(
+			response.Error("X-Idempotency-Key header is required", correlationID),
+		)
+	}
+	req.IdempotencyKey = idempotencyKey
+
 	resp, err := c.TransferUseCase.TopUp(ctx.Context(), userID, req)
 	if err != nil {
 		return c.handleError(ctx, err, correlationID)
@@ -52,6 +60,14 @@ func (c *TransferController) Initiate(ctx *fiber.Ctx) error {
 			response.Error("Invalid request body", correlationID),
 		)
 	}
+
+	idempotencyKey := ctx.Get("X-Idempotency-Key")
+	if idempotencyKey == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(
+			response.Error("X-Idempotency-Key header is required", correlationID),
+		)
+	}
+	req.IdempotencyKey = idempotencyKey
 
 	resp, err := c.TransferUseCase.Initiate(ctx.Context(), userID, req)
 	if err != nil {

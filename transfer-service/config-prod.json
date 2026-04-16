@@ -17,7 +17,7 @@
   },
   "telemetry": {
     "enabled": true,
-    "endpoint": "otel-collector:4317"
+    "endpoint": "otel-collector:4318"
   },
   "database": {
     "username": "${DB_USERNAME}",

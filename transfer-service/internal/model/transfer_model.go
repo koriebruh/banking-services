@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"golang-clean-architecture/internal/entity"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 // ------------------------------------
 
 type TopUpRequest struct {
+	IdempotencyKey      string          `json:"-" validate:"required"`
 	TargetAccountNumber string          `json:"target_account_number" validate:"required,len=10,numeric"`
 	Amount              decimal.Decimal `json:"amount"                validate:"required,gt=0"`
 	Currency            string          `json:"currency"              validate:"required,len=3,uppercase"`
@@ -35,7 +35,7 @@ func (r *TopUpRequest) ToEntity(userID uuid.UUID) *entity.Transfer {
 	settledAt := time.Now().UTC()
 	return &entity.Transfer{
 		ID:                  uuid.New(),
-		ReferenceID:         generateReferenceID(),
+		ReferenceID:         r.IdempotencyKey,
 		UserID:              userID,
 		TransferType:        entity.TransferTypeTopUp,
 		Status:              entity.TransferStatusCompleted, // langsung COMPLETED
@@ -52,6 +52,7 @@ func (r *TopUpRequest) ToEntity(userID uuid.UUID) *entity.Transfer {
 }
 
 type InitiateTransferRequest struct {
+	IdempotencyKey      string          `json:"-" validate:"required"`
 	SourceAccountNumber string          `json:"source_account_number" validate:"required,len=10,numeric"`
 	TargetAccountNumber string          `json:"target_account_number" validate:"required,len=10,numeric,nefield=SourceAccountNumber"`
 	Amount              decimal.Decimal `json:"amount"                validate:"required,gt=0"`
@@ -64,7 +65,7 @@ type InitiateTransferRequest struct {
 func (r *InitiateTransferRequest) ToEntity(userID uuid.UUID) *entity.Transfer {
 	return &entity.Transfer{
 		ID:                  uuid.New(),
-		ReferenceID:         generateReferenceID(),
+		ReferenceID:         r.IdempotencyKey,
 		UserID:              userID,
 		TransferType:        entity.TransferTypeInternal,
 		Status:              entity.TransferStatusPending,
@@ -79,12 +80,7 @@ func (r *InitiateTransferRequest) ToEntity(userID uuid.UUID) *entity.Transfer {
 	}
 }
 
-func generateReferenceID() string {
-	return fmt.Sprintf("TXN-%s-%s",
-		time.Now().UTC().Format("20060102"),
-		uuid.New().String()[:8],
-	)
-}
+// Reference ID generation removed to enforce Idempotency-Key from client
 
 type CancelTransferRequest struct {
 	Reason *string `json:"reason" validate:"omitempty,max=255"`

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+
 	"golang-clean-architecture/internal/delivery/http"
 	"golang-clean-architecture/internal/delivery/http/middleware"
 	"golang-clean-architecture/internal/delivery/http/route"
@@ -9,6 +11,7 @@ import (
 	"golang-clean-architecture/internal/repository"
 	"golang-clean-architecture/internal/telemetry"
 	"golang-clean-architecture/internal/usecase"
+	"golang-clean-architecture/internal/worker"
 
 	"github.com/IBM/sarama"
 	"github.com/go-playground/validator/v10"
@@ -37,6 +40,11 @@ func Bootstrap(cfg *BootstrapConfig) {
 
 	// INIT
 	publisher := messaging.NewTransferEventPublisher(cfg.KafkaProducer, cfg.Log, cfg.Config)
+
+	// Start Worker Outbox
+	outboxWorker := worker.NewOutboxWorker(cfg.DB, cfg.Log, publisher)
+	outboxWorker.Start(context.Background())
+
 	transferRepository := repository.NewTransferRepository(cfg.Log)
 	transferUseCase := usecase.NewTransferUseCase(
 		cfg.DB,

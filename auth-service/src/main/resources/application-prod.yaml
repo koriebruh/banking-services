@@ -151,7 +151,7 @@ management:
     tracing:
       export:
         otlp:
-          endpoint: "http://otel-collector:4317"
+          endpoint: "http://otel-collector:4318/v1/traces"
 
   # Metrics (Micrometer OTLP Namespace)
   otlp:

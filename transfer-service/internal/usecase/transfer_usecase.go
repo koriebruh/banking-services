@@ -2,7 +2,10 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
+
 	"golang-clean-architecture/internal/entity"
 	"golang-clean-architecture/internal/event"
 	"golang-clean-architecture/internal/gateway/grpc"
@@ -10,11 +13,11 @@ import (
 	"golang-clean-architecture/internal/model"
 	"golang-clean-architecture/internal/repository"
 	"golang-clean-architecture/internal/shared/exception"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -62,11 +65,18 @@ func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *mod
 
 	transfer := req.ToEntity(userID)
 
-	if err := uc.TransferRepository.Create(uc.DB, transfer); err != nil {
+	tx := uc.DB.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer tx.Rollback()
+
+	if err := uc.TransferRepository.Create(tx, transfer); err != nil {
 		return nil, err
 	}
 
-	// Publish Kafka langsung — ga perlu confirm
+	// Insert ke outbox table (Transactional Outbox) 
+	// Event Kafka dibuat bareng dengan insert transfer dalam satu transaksi DB.
 	kafkaEvent := event.TransferEvent{
 		ReferenceID:         transfer.ReferenceID,
 		SourceAccountNumber: "EXTERNAL",
@@ -74,9 +84,22 @@ func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *mod
 		Amount:              transfer.Amount,
 		Currency:            transfer.SourceCurrency,
 	}
+	
+	payloadBytes, _ := json.Marshal(kafkaEvent)
+	outbox := entity.OutboxEvent{
+		ID:        uuid.New(),
+		Topic:     "transfer.events", 
+		Payload:   string(payloadBytes),
+		Status:    entity.OutboxStatusPending,
+		CreatedAt: time.Now().UTC(),
+	}
 
-	if err := uc.TransferProducer.Publish(ctx, kafkaEvent); err != nil {
-		uc.Log.Errorf("Kafka publish failed referenceId=%s: %v", transfer.ReferenceID, err)
+	if err := tx.Create(&outbox).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
 	}
 
 	return &model.TopUpResponse{
@@ -97,23 +120,35 @@ func (uc *TransferUseCase) Initiate(ctx context.Context, userID uuid.UUID, req *
 		return nil, err
 	}
 
-	// TODO: gRPC call → ValidateAccount (source) — cek ACTIVE + balance cukup
-	_, err := uc.AccountGrpcClient.ValidateAccount(ctx,
-		req.SourceAccountNumber,
-		req.Amount.String(),
-		req.SourceCurrency,
-	)
-	if err != nil {
-		return nil, err
-	}
+	// Menggunakan errgroup untuk melakukan 2 gRPC call (source dan target) secara paralel (concurrently).
+	// Ini akan menghemat waktu response sebesar selisih latency terlama diantara dua service. Sangat penting saat traffic payload tinggi.
+	g, gCtx := errgroup.WithContext(ctx)
 
-	// TODO: gRPC call → GetAccountDetail (target) — cek ACTIVE
-	targetResp, err := uc.AccountGrpcClient.GetAccountDetail(ctx, req.TargetAccountNumber)
-	if err != nil {
+	// Goroutine 1: Validasi account source melalui gRPC
+	g.Go(func() error {
+		_, err := uc.AccountGrpcClient.ValidateAccount(gCtx,
+			req.SourceAccountNumber,
+			req.Amount.String(),
+			req.SourceCurrency,
+		)
+		return err
+	})
+
+	// Goroutine 2: Get detail account target melalui gRPC
+	g.Go(func() error {
+		targetResp, err := uc.AccountGrpcClient.GetAccountDetail(gCtx, req.TargetAccountNumber)
+		if err != nil {
+			return err
+		}
+		if targetResp.Status != "ACTIVE" {
+			return exception.ErrAccountNotActive
+		}
+		return nil
+	})
+
+	// Tunggu kedua goroutine selesai dieksekusi
+	if err := g.Wait(); err != nil {
 		return nil, err
-	}
-	if targetResp.Status != "ACTIVE" {
-		return nil, exception.ErrAccountNotActive
 	}
 
 	transfer := req.ToEntity(userID)
@@ -128,7 +163,14 @@ func (uc *TransferUseCase) Initiate(ctx context.Context, userID uuid.UUID, req *
 
 // Confirm executes the transfer — transitions PENDING → COMPLETED and publishes Kafka event.
 func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, referenceID string) (*model.ConfirmTransferResponse, error) {
-	transfer, err := uc.TransferRepository.FindByReferenceID(uc.DB, referenceID)
+	tx := uc.DB.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer tx.Rollback()
+
+	// Gunakan FindByReferenceIDLocked untuk mengaplikasikan SELECT ... FOR UPDATE (Pessimistic locking)
+	transfer, err := uc.TransferRepository.FindByReferenceIDLocked(tx, referenceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrTransferNotFound
@@ -147,14 +189,14 @@ func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, refere
 
 	settledAt := time.Now().UTC()
 
-	if err := uc.TransferRepository.UpdateStatus(uc.DB, referenceID, entity.TransferStatusCompleted, map[string]interface{}{
+	if err := uc.TransferRepository.UpdateStatus(tx, referenceID, entity.TransferStatusCompleted, map[string]interface{}{
 		"settled_at": settledAt,
 	}); err != nil {
 		uc.Log.Errorf("Failed to update transfer status referenceId=%s: %v", referenceID, err)
 		return nil, err
 	}
 
-	// Publish Kafka event after status committed
+	// Publish Kafka event after status committed (Pindah ke Outbox)
 	kafkaEvent := event.TransferEvent{
 		ReferenceID:         transfer.ReferenceID,
 		SourceAccountNumber: transfer.SourceAccountNumber,
@@ -163,9 +205,21 @@ func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, refere
 		Currency:            transfer.SourceCurrency,
 	}
 
-	if err := uc.TransferProducer.Publish(ctx, kafkaEvent); err != nil {
-		// NON-FATAL — status sudah COMPLETED, log untuk manual replay
-		uc.Log.Errorf("Kafka publish failed referenceId=%s: %v", referenceID, err)
+	payloadBytes, _ := json.Marshal(kafkaEvent)
+	outbox := entity.OutboxEvent{
+		ID:        uuid.New(),
+		Topic:     "transfer.events",
+		Payload:   string(payloadBytes),
+		Status:    entity.OutboxStatusPending,
+		CreatedAt: time.Now().UTC(),
+	}
+
+	if err := tx.Create(&outbox).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
 	}
 
 	return &model.ConfirmTransferResponse{
@@ -177,7 +231,14 @@ func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, refere
 
 // Cancel transitions PENDING → FAILED with reason.
 func (uc *TransferUseCase) Cancel(ctx context.Context, userID uuid.UUID, referenceID string, req *model.CancelTransferRequest) (*model.CancelTransferResponse, error) {
-	transfer, err := uc.TransferRepository.FindByReferenceID(uc.DB, referenceID)
+	tx := uc.DB.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer tx.Rollback()
+
+	// Gunakan FindByReferenceIDLocked (Pessimistic locking) agar tidak berbenturan dengan Confirm
+	transfer, err := uc.TransferRepository.FindByReferenceIDLocked(tx, referenceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrTransferNotFound
@@ -199,9 +260,13 @@ func (uc *TransferUseCase) Cancel(ctx context.Context, userID uuid.UUID, referen
 		reason = "CANCELLED_BY_USER: " + *req.Reason
 	}
 
-	if err := uc.TransferRepository.UpdateStatus(uc.DB, referenceID, entity.TransferStatusFailed, map[string]interface{}{
+	if err := uc.TransferRepository.UpdateStatus(tx, referenceID, entity.TransferStatusFailed, map[string]interface{}{
 		"failure_reason": reason,
 	}); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
 
