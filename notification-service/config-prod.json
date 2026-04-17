@@ -24,5 +24,12 @@
       "group": "notification-service-group",
       "topics": "auth.events,account.events,transfer.events"
     }
+  },
+  "smtp": {
+    "host": "notification-mailhog",
+    "port": 1025,
+    "username": "example@gmail.com",
+    "password": "yey12345#",
+    "from": "noreply@banking-service.local"
   }
 }

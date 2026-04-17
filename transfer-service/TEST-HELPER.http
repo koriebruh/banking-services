@@ -1,5 +1,7 @@
 @correlationId = test-004
-@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJURUxMRVIiXSwidHlwZSI6ImFjY2VzcyIsInVzZXJDb2RlIjoiVEVMTEVSMDAxIiwic3ViIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAyIiwiaXNzIjoiYXV0aC1zZXJ2aWNlIiwiYXVkIjpbImJhbmtpbmctYXBpIl0sImp0aSI6IjkzODNmZDM0LTBlM2YtNDI2ZS04MGMwLTA3ZjA5NmY0Y2VlOSIsImlhdCI6MTc3NTg4MjA3NSwiZXhwIjoxNzc1ODgyOTc1fQ.h0PZOCMXRVPBAqq8WaBdUG5nLFIgedXg-QuYRxTVqsqff2481xB43LP2hOcv8tXSokiwoLXEE8Il1Z_MvXYh2DgtW3GRYEjw6XGM5Wk4G0-mqQ2d9bF7aFULP77W2HiAT7eX4D_dL_AXhZvvsy8c3eOCavkTwfAH5hmbJ_aIpin57zbVIXxnxGqsEkSH8GTZIQcDo9wSF5kVLVfI7XH7er8ZnJLBgO8paXlH1Tur6Hcmr1OO0VQo5XOHgO_g95Am3_Z6Dak9H0ASudjE2u6zYkYJ-aOOnFXaECw_b3MuBWe5SaVTgCe2f4myOcuc7IWgjTSj6RNBf7itMgvhaPF7Vw
+@accessToken = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItMjAyNjA0MTctMDAwMDIiLCJzdWIiOiI1ZGY3MmI2OC0yMzIwLTRkYmUtODk4Mi04NjBmYjA0MzEzMGUiLCJpc3MiOiJhdXRoLXNlcnZpY2UiLCJhdWQiOlsiYmFua2luZy1hcGkiXSwianRpIjoiZWQ5NDA1Y2EtYzQ0Mi00ODlhLWIyZWItNWRlMDAwYTk0ZGNkIiwiaWF0IjoxNzc2NDMxNDc5LCJleHAiOjE3NzY0MzIzNzl9.Wqq4Zs8MXVhfK5upXiNLzZnOY7F8ReBVrPZO2OBdCswdBJrQlwSvQ00e7lRt8IOiYLy22rYMFGUgFt5WQn9Ej7438G4-pr3VKIjDqZDyeUA9FZ5zgfDzlV08gaO_WY_wRgYtHs9i29WDa0fXTS0Rp3-Br6rSOupvV4mi40mP7aoaCzgk8JwMXyNN5iRCJVz_IIZ1rmtCaiMjG9HafUA7s-vdPT_hzIHDiZ6luGDtL_DUGu2Du1je0ry1BiqBhz8-VrsIMOL27ird51wMmNQlWrUJmdxydGXu9LYBsepWmYuM1W145hxj-C2ZkAU2S76Q6fn-9IGnPvRRLPvCY7v8gA
+
+
 
 
 ### LOGIN ACC 1
@@ -9,17 +11,15 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "email": "teller@bank.local",
-  "password": "Test@1234"
+  "email": "bagas.putra@example.com",
+  "password": "StrongPass1!"
 }
-
 
 ###
 #{
-#  "email": "maya.kartika.sari@example.com",
-#  "password": "Test@1234"
+#"email": "teller@bank.local",
+#"password": "Test@1234"
 #}
-
 
 
 ### CREATE DEPOSIT
@@ -30,8 +30,13 @@ X-Correlation-ID: {{correlationId}}
 Authorization: Bearer {{accessToken}}
 
 {
-  "account_type": "CURRENT"
+  "account_type": "RDN",
+  "rdn_detail": {
+    "sid": "IDD123456789011",
+    "securities_company": "PT Mandiri Sekuritas"
+  }
 }
+
 
 ### GET ACCOUNT
 GET http://localhost:8082/api/v1/accounts

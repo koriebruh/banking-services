@@ -22,6 +22,9 @@ import java.time.Instant;
 @AllArgsConstructor
 public class TransferEvent {
 
+    @JsonProperty("user_code")
+    private String userCode;
+
     @JsonProperty("reference_id")
     private String referenceId;         // idempotency key
 

@@ -7,6 +7,7 @@ import (
 	"golang-clean-architecture/internal/delivery/http/middleware"
 	"golang-clean-architecture/internal/delivery/http/route"
 	"golang-clean-architecture/internal/hub"
+	"golang-clean-architecture/internal/notification"
 	"golang-clean-architecture/internal/telemetry"
 	"golang-clean-architecture/internal/worker"
 	"github.com/gofiber/fiber/v2"
@@ -15,10 +16,10 @@ import (
 )
 
 type BootstrapConfig struct {
-	App           *fiber.App
-	Log           *logrus.Logger
-	Config        *viper.Viper
-	Telemetry     *telemetry.Providers
+	App       *fiber.App
+	Log       *logrus.Logger
+	Config    *viper.Viper
+	Telemetry *telemetry.Providers
 }
 
 func Bootstrap(cfg *BootstrapConfig) {
@@ -27,16 +28,18 @@ func Bootstrap(cfg *BootstrapConfig) {
 		cfg.Log.Fatalf("Failed to load JWT public key: %v", err)
 	}
 
-
 	// HUB & WS
 	notificationHub := hub.New()
 	notificationController := http.NewNotificationController(cfg.Log, notificationHub)
+
+	// EMAIL SENDER (MailHog dev / SMTP prod)
+	emailSender := notification.NewEmailSender(cfg.Config, cfg.Log)
 
 	// MIDDLEWARE
 	correlationIdMiddleware := middleware.CorrelationID(cfg.Log)
 	jwtMiddleware := middleware.JWTProtected(cfg.Log)
 
-	//
+	// ROUTES
 	routeConfig := route.RouteConfig{
 		App:                     cfg.App,
 		NotificationController:  notificationController,
@@ -46,7 +49,8 @@ func Bootstrap(cfg *BootstrapConfig) {
 	}
 	routeConfig.Setup()
 
-	// Notification Worker
-	notificationWorker := worker.NewNotificationWorker(cfg.Log, cfg.Config, notificationHub)
+	// NOTIFICATION WORKER
+	notificationWorker := worker.NewNotificationWorker(cfg.Log, cfg.Config, notificationHub, emailSender)
 	notificationWorker.Start(context.Background())
 }
+

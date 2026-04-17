@@ -11,13 +11,13 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "full_name": "Anindita Cahya Lestari",
-  "email": "anindita.lestari@example.com",
-  "password": "StrongPwd7@",
-  "phone_number": "082112345678",
-  "nik": "3578021203910009",
-  "address": "Jl. Ahmad Yani No. 10, Surabaya",
-  "date_of_birth": "1991-03-12"
+  "full_name": "Bagas Pradana Putra",
+  "email": "bagas.putra@example.com",
+  "password": "StrongPass1!",
+  "phone_number": "081234567890",
+  "nik": "3174021503980001",
+  "address": "Jl. Kenanga No. 12, Jakarta Selatan",
+  "date_of_birth": "1998-03-15"
 }
 
 ###
@@ -38,7 +38,7 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "email": "anindita.lestari@example.com"
+  "email": "bagas.putra@example.com"
 }
 
 ### 3. VERIFY EMAIL OTP, VISIT http://localhost:8025/ (IN DEV MODE) TO GET OTP CODE
@@ -48,8 +48,8 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-"email": "anindita.lestari@example.com",
-"otp_code": "721471"
+"email": "bagas.putra@example.com",
+"otp_code": "583309"
 }
 
 ### 4. LOGIN REQUEST
@@ -59,8 +59,8 @@ Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 {
-  "email": "maya.kartika.sari@example.com",
-  "password": "ValidPass4$"
+  "email": "bagas.putra@example.com",
+  "password": "StrongPass1!"
 }
 
 

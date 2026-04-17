@@ -48,7 +48,7 @@ func NewTransferUseCase(
 	}
 }
 
-func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *model.TopUpRequest) (*model.TopUpResponse, error) {
+func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *model.TopUpRequest, userCode string) (*model.TopUpResponse, error) {
 	if err := uc.Validate.Struct(req); err != nil {
 		return nil, err
 	}
@@ -75,20 +75,21 @@ func (uc *TransferUseCase) TopUp(ctx context.Context, userID uuid.UUID, req *mod
 		return nil, err
 	}
 
-	// Insert ke outbox table (Transactional Outbox) 
+	// Insert ke outbox table (Transactional Outbox)
 	// Event Kafka dibuat bareng dengan insert transfer dalam satu transaksi DB.
 	kafkaEvent := event.TransferEvent{
+		UserCode:            userCode,
 		ReferenceID:         transfer.ReferenceID,
 		SourceAccountNumber: "EXTERNAL",
 		TargetAccountNumber: transfer.TargetAccountNumber,
 		Amount:              transfer.Amount,
 		Currency:            transfer.SourceCurrency,
 	}
-	
+
 	payloadBytes, _ := json.Marshal(kafkaEvent)
 	outbox := entity.OutboxEvent{
 		ID:        uuid.New(),
-		Topic:     "transfer.events", 
+		Topic:     "transfer.events",
 		Payload:   string(payloadBytes),
 		Status:    entity.OutboxStatusPending,
 		CreatedAt: time.Now().UTC(),
@@ -162,7 +163,7 @@ func (uc *TransferUseCase) Initiate(ctx context.Context, userID uuid.UUID, req *
 }
 
 // Confirm executes the transfer — transitions PENDING → COMPLETED and publishes Kafka event.
-func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, referenceID string) (*model.ConfirmTransferResponse, error) {
+func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, referenceID string, userCode string) (*model.ConfirmTransferResponse, error) {
 	tx := uc.DB.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -198,6 +199,7 @@ func (uc *TransferUseCase) Confirm(ctx context.Context, userID uuid.UUID, refere
 
 	// Publish Kafka event after status committed (Pindah ke Outbox)
 	kafkaEvent := event.TransferEvent{
+		UserCode:            userCode,
 		ReferenceID:         transfer.ReferenceID,
 		SourceAccountNumber: transfer.SourceAccountNumber,
 		TargetAccountNumber: transfer.TargetAccountNumber,

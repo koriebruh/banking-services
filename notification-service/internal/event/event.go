@@ -13,10 +13,10 @@ const (
 	TopicAccount  = "account.events"
 )
 
-// Banking Best Practice: 
+// Banking Best Practice:
 // - Gunakan struct tag yang eksplisit (`json:"..."`)
 // - Gunakan tipe data time.Time untuk kolom waktu agar mudah di validasi/formatting.
-// - Gunakan raw json / `map[string]interface{}` untuk metadata yang dinamis, 
+// - Gunakan raw json / `map[string]interface{}` untuk metadata yang dinamis,
 //   memudahkan extensibility (schema evolution).
 // - Untuk currency/uang, lebih aman menggunakan Decimal dibandingkan float64 untuk menghindari masalah presisi.
 
@@ -85,6 +85,7 @@ const (
 
 // TransferEventData menampung detail asli dari transfer (Sesuai go struct TransferEvent)
 type TransferEventData struct {
+	UserCode            string          `json:"user_code"`
 	ReferenceID         string          `json:"reference_id"`
 	SourceAccountNumber string          `json:"source_account_number"`
 	TargetAccountNumber string          `json:"target_account_number"`
@@ -102,10 +103,37 @@ type StructuredTransferEvent struct {
 
 // Catatan: Jika Kafka topic transfer.events masih mengirim struktur flat (TransferEvent go murni):
 type TransferEvent struct {
+	UserCode            string          `json:"user_code"`
 	ReferenceID         string          `json:"reference_id"`
 	SourceAccountNumber string          `json:"source_account_number"`
 	TargetAccountNumber string          `json:"target_account_number"`
 	Amount              decimal.Decimal `json:"amount"`
 	Currency            string          `json:"currency"`
 	OccurredAt          time.Time       `json:"occurred_at"`
+}
+
+// ── Notification domain ───────────────────────────────────────────────────────
+
+// Channel mendefinisikan kanal pengiriman notifikasi.
+type Channel string
+
+const (
+	ChannelEmail Channel = "EMAIL"
+	ChannelWS    Channel = "WS"
+)
+
+// Notification adalah domain object yang merepresentasikan satu unit notifikasi
+// yang siap dikirim ke satu kanal (Email atau WebSocket).
+//
+// To      : email address (untuk ChannelEmail) atau user_code (untuk ChannelWS)
+// Subject : judul/subject notifikasi
+// Channel : kanal pengiriman
+// Template: nama template yang digunakan, e.g. "transfer_confirmed", "login_success"
+// Data    : map data dinamis untuk mengisi template
+type Notification struct {
+	To       string
+	Subject  string
+	Channel  Channel
+	Template string
+	Data     map[string]any
 }

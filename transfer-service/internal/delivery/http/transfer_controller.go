@@ -24,6 +24,7 @@ func NewTransferController(log *logrus.Logger, transferUseCase *usecase.Transfer
 func (c *TransferController) TopUp(ctx *fiber.Ctx) error {
 	correlationID, _ := ctx.Locals("correlationId").(string)
 	userID, _ := ctx.Locals("userId").(uuid.UUID)
+	userCode, _ := ctx.Locals("userCode").(string)
 
 	req := new(model.TopUpRequest)
 	if err := ctx.BodyParser(req); err != nil {
@@ -40,7 +41,7 @@ func (c *TransferController) TopUp(ctx *fiber.Ctx) error {
 	}
 	req.IdempotencyKey = idempotencyKey
 
-	resp, err := c.TransferUseCase.TopUp(ctx.Context(), userID, req)
+	resp, err := c.TransferUseCase.TopUp(ctx.Context(), userID, req, userCode)
 	if err != nil {
 		return c.handleError(ctx, err, correlationID)
 	}
@@ -82,9 +83,10 @@ func (c *TransferController) Initiate(ctx *fiber.Ctx) error {
 func (c *TransferController) Confirm(ctx *fiber.Ctx) error {
 	correlationID, _ := ctx.Locals("correlationId").(string)
 	userID, _ := ctx.Locals("userId").(uuid.UUID)
+	userCode, _ := ctx.Locals("userCode").(string)
 	referenceID := ctx.Params("referenceId")
 
-	resp, err := c.TransferUseCase.Confirm(ctx.Context(), userID, referenceID)
+	resp, err := c.TransferUseCase.Confirm(ctx.Context(), userID, referenceID, userCode)
 	if err != nil {
 		return c.handleError(ctx, err, correlationID)
 	}

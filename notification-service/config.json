@@ -24,5 +24,12 @@
       "group": "notification-service-group",
       "topics": "auth.events,account.events,transfer.events"
     }
+  },
+  "smtp": {
+    "host": "localhost",
+    "port": 1026,
+    "username": "",
+    "password": "",
+    "from": "noreply@banking-service.local"
   }
 }
