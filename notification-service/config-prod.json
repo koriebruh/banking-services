@@ -1,0 +1,28 @@
+{
+  "app": {
+    "name": "notification-service"
+  },
+  "web": {
+    "prefork": false,
+    "port": 8084
+  },
+  "log": {
+    "level": 6
+  },
+  "jwt": {
+    "public_key_path": "secrets/public.pem"
+  },
+  "telemetry": {
+    "enabled": true,
+    "endpoint": "otel-collector:4317"
+  },
+  "kafka": {
+    "bootstrap": {
+      "servers": "kafka:29092"
+    },
+    "consumer": {
+      "group": "notification-service-group",
+      "topics": "auth.events,account.events,transfer.events"
+    }
+  }
+}

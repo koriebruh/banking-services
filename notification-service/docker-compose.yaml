@@ -1,0 +1,32 @@
+services:
+  # -----------------------------------------------------------------------
+  # APPLICATION SERVICE
+  # -----------------------------------------------------------------------
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8084:8084"
+    env_file:
+      - .env
+
+    networks:
+      - notification-network
+      - shared-network
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8084/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+
+networks:
+  notification-network:
+    name: notification-network
+    driver: bridge
+  shared-network:
+    external: true

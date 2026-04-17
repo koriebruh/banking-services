@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Notification Tester</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #334155; margin: 0; padding: 2rem; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); width: 100%; max-width: 600px; }
+        h2 { margin-top: 0; color: #0f172a; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; }
+        input[type="text"] { width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; box-sizing: border-box; }
+        button { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.2s; margin-right: 0.5rem; }
+        .btn-connect { background-color: #3b82f6; color: white; }
+        .btn-connect:hover { background-color: #2563eb; }
+        .btn-disconnect { background-color: #ef4444; color: white; }
+        .btn-disconnect:hover { background-color: #dc2626; }
+        .btn-disconnect:disabled { background-color: #fca5a5; cursor: not-allowed; }
+        .status { margin-top: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8; }
+        .status-dot.connected { background-color: #22c55e; }
+        .status-dot.error { background-color: #ef4444; }
+        .logs { margin-top: 1.5rem; background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 4px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.875rem; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #0f172a; }
+        .log-entry { margin-bottom: 0.5rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+        .log-time { color: #94a3b8; font-size: 0.75rem; }
+        .log-data { margin-top: 0.25rem; color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🧪 Notification Service Tester</h2>
+    
+    <div class="form-group">
+        <label for="jwtToken">JWT Token (Bearer/Token)</label>
+        <input type="text" id="jwtToken" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    </div>
+
+    <div>
+        <button id="btnConnect" class="btn-connect" onclick="connect()">Connect</button>
+        <button id="btnDisconnect" class="btn-disconnect" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+
+    <div class="status">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText">Disconnected</span>
+    </div>
+
+    <div class="logs" id="logs">
+        <!-- Logs appear here -->
+    </div>
+</div>
+
+<script>
+    let ws = null;
+    const logsEl = document.getElementById('logs');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+
+    function log(message, data = null) {
+        const time = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        
+        const timeSpan = document.createElement('div');
+        timeSpan.className = 'log-time';
+        timeSpan.textContent = `[${time}] ${message}`;
+        entry.appendChild(timeSpan);
+
+        if (data) {
+            const dataDiv = document.createElement('div');
+            dataDiv.className = 'log-data';
+            try {
+                dataDiv.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            } catch (e) {
+                dataDiv.textContent = data;
+            }
+            entry.appendChild(dataDiv);
+        }
+
+        logsEl.prepend(entry);
+    }
+
+    function setStatus(status) {
+        statusDot.className = 'status-dot';
+        if (status === 'connected') {
+            statusDot.classList.add('connected');
+            statusText.textContent = 'Connected & Listening to Kafka...';
+            btnConnect.disabled = true;
+            btnDisconnect.disabled = false;
+        } else if (status === 'error') {
+            statusDot.classList.add('error');
+            statusText.textContent = 'Connection Error';
+            btnConnect.disabled = false;
+            btnDisconnect.disabled = true;
+        } else {
+            statusText.textContent = 'Disconnected';
+            btnConnect.disabled = false;
+            btnDisconnect.disabled = true;
+        }
+    }
+
+    function connect() {
+        const token = document.getElementById('jwtToken').value.trim();
+        if (!token) {
+            alert('Please enter a JWT token first!');
+            return;
+        }
+
+        // Connect to port 8084 based on the latest config modifications
+        const wsUrl = `ws://localhost:8084/ws/notifications?token=${encodeURIComponent(token)}`;
+        log(`Connecting to ${wsUrl}...`);
+
+        try {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                setStatus('connected');
+                log('WebSocket handshake successful!');
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const payload = JSON.parse(event.data);
+                    log('📥 Received Message:', payload);
+                } catch (e) {
+                    log('📥 Received Text (Non-JSON):', event.data);
+                }
+            };
+
+            ws.onclose = function(event) {
+                setStatus('disconnected');
+                log('Socket closed by server or internal error.', `Code: ${event.code}`);
+                ws = null;
+            };
+
+            ws.onerror = function(error) {
+                setStatus('error');
+                log('WebSocket Error encountered! Check token validity and server logs.');
+                console.error('WS Error:', error);
+            };
+
+        } catch (e) {
+            setStatus('error');
+            log('Failed to create WebSocket instance', e.message);
+        }
+    }
+
+    function disconnect() {
+        if (ws) {
+            log('Client initiated disconnect...');
+            ws.close();
+        }
+    }
+</script>
+
+</body>
+</html>
