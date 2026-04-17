@@ -1,0 +1,35 @@
+{
+  "app": {
+    "name": "audit-service"
+  },
+  "web": {
+    "prefork": false,
+    "port": 8085
+  },
+  "log": {
+    "level": 6
+  },
+  "jwt": {
+    "public_key_path": "secrets/public.pem"
+  },
+  "db": {
+    "host": "localhost",
+    "port": 5555,
+    "name": "audit_db",
+    "username": "audit_user",
+    "password": "korie123"
+  },
+  "telemetry": {
+    "enabled": false,
+    "endpoint": "localhost:4319"
+  },
+  "kafka": {
+    "bootstrap": {
+      "servers": "localhost:9092"
+    },
+    "consumer": {
+      "group": "audit-service-group",
+      "topics": "auth.events,account.events,transfer.events"
+    }
+  }
+}

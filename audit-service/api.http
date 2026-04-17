@@ -1,0 +1,79 @@
+
+@token = eyJhbGciOiJSUzI1NiJ9.eyJyb2xlcyI6WyJDVVNUT01FUiJdLCJ0eXBlIjoiYWNjZXNzIiwidXNlckNvZGUiOiJVU1ItMjAyNjA0MTctMDAwMDIiLCJzdWIiOiI1ZGY3MmI2OC0yMzIwLTRkYmUtODk4Mi04NjBmYjA0MzEzMGUiLCJpc3MiOiJhdXRoLXNlcnZpY2UiLCJhdWQiOlsiYmFua2luZy1hcGkiXSwianRpIjoiZDkxMzFkZGQtMGI4YS00MGRmLWI4ZGQtNmMxYmRkOWY2M2I5IiwiaWF0IjoxNzc2NDUyMTc4LCJleHAiOjE3NzY0NTMwNzh9.AxqKkVzEozR01RiGWgA3LQhn04wdPMtf63hXIcVhx2ABpEA4CXetzCRcnNn5-W2w3HB8csQ2KHPKWqDrt_NJv632xHHgIN0iOveTXEuMA7zmonf_ig9oJujvGRIYfrdV4gMz7Zb5NuvW9NtZ5AH4HGjQnCKI6Nw45BNLhWVgxkmt304rObnGykTYHA3dZxZ-cywxWEEY31NZB8K_A_STPdZfjiQd-1hm2eVTps_z_hCC_jXl4gIdpHh0yt-JjcYtzpVaVlpqWwEp89zdPA1uymjnfuVij_QpGNNYYCB1XA2xyx9m1pBHDnNpMv7qE12AYxBSZ_bUPqmaHF0Kczw_Lg
+@correlationId = test-004
+
+###
+POST http://localhost:8081/api/v1/auth/login
+Content-Type: application/json
+Accept: application/json
+X-Correlation-ID: {{correlationId}}
+
+{
+  "email": "bagas.putra@example.com",
+  "password": "StrongPass1!"
+}
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — All (Default Pagination)
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?page=1&size=20
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-001
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Filter by Event Source (AUTH only)
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?event_source=AUTH&page=1&size=10
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-002
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Filter by User Code
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?user_code=USR-001&page=1&size=20
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-003
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Filter by Date Range
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?start_date=2026-04-01&end_date=2026-04-18&page=1&size=20
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-004
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Filter by Event Type (e.g. login failed)
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?event_type=user.login.failed&page=1&size=10
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-005
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Filter by Resource (e.g. specific account)
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?resource_type=ACCOUNT&resource_id=1234567890&page=1&size=10
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-006
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Combined Filters (User + Source + Date Range)
+### Banking Use Case: "Semua aktivitas auth user X dalam minggu terakhir"
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?user_code=USR-001&event_source=AUTH&start_date=2026-04-11&end_date=2026-04-18&page=1&size=50
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-007
+
+
+### ─────────────────────────────────────────────────────────────────────
+### GET Audit Logs — Transfer Events Only
+### Banking Use Case: "Semua transfer yang terjadi hari ini"
+### ─────────────────────────────────────────────────────────────────────
+GET http://localhost:8085/api/audit-logs?event_source=TRANSFER&start_date=2026-04-18&end_date=2026-04-18&page=1&size=20
+Authorization: Bearer {{token}}
+X-Correlation-ID: audit-test-008

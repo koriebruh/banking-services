@@ -1,0 +1,59 @@
+services:
+  # -----------------------------------------------------------------------
+  # APPLICATION SERVICE
+  # -----------------------------------------------------------------------
+  audit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audit-service
+    ports:
+      - "8085:8085"
+    env_file:
+      - .env
+    depends_on:
+      audit-postgres:
+        condition: service_healthy
+    networks:
+      - audit-network
+      - shared-network
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8085/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # -----------------------------------------------------------------------
+  # POSTGRESQL
+  # -----------------------------------------------------------------------
+  audit-postgres:
+    image: postgres:16-alpine
+    container_name: audit-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5555:5432"
+    env_file:
+      - .env
+    networks:
+      - audit-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+
+networks:
+  audit-network:
+    name: audit-network
+    driver: bridge
+  shared-network:
+    external: true
