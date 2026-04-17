@@ -131,7 +131,7 @@ public class AuthService {
                                 .then(eventPublisher.publish(
                                         AuthEventType.USER_REGISTERED,
                                         response.getUserCode(),
-                                        maskEmail(request.getEmail()),
+                                        request.getEmail(),
                                         null, null, null
                                 ))
                                 .thenReturn(response)
@@ -385,7 +385,7 @@ public class AuthService {
                                     eventPublisher.publish(
                                             AuthEventType.LOGIN_SUCCESS,
                                             user.getUserCode(),
-                                            maskEmail(request.getEmail()),
+                                            request.getEmail(),
                                             ipAddress, userAgent, null
                                     ).thenReturn(response)
                             );
@@ -428,7 +428,7 @@ public class AuthService {
                                     ? AuthEventType.ACCOUNT_LOCKED
                                     : AuthEventType.LOGIN_FAILED,
                             user.getUserCode(),
-                            maskEmail(user.getEmail()),
+                            user.getEmail(),
                             null, null,
                             Map.of("failedAttempts", newFailedCount)   // ← metadata
                     ))
@@ -571,7 +571,7 @@ public class AuthService {
                             eventPublisher.publish(
                                     AuthEventType.MFA_ENABLED,
                                     updatedUser.getUserCode(),
-                                    maskEmail(updatedUser.getEmail()),
+                                    updatedUser.getEmail(),
                                     null, null, null
                             ).thenReturn(updatedUser)
                     );
@@ -662,7 +662,7 @@ public class AuthService {
                             .then(eventPublisher.publish(
                                     AuthEventType.MFA_VALIDATED,
                                     user.getUserCode(),
-                                    maskEmail(user.getEmail()),
+                                    user.getEmail(),
                                     ipAddress, userAgent, null
                             ))
                             .thenReturn(MfaValidateResponse.builder()
@@ -857,7 +857,7 @@ public class AuthService {
                             .then(eventPublisher.publish(
                                     AuthEventType.PASSWORD_CHANGED,
                                     user.getUserCode(),
-                                    maskEmail(user.getEmail()),
+                                    user.getEmail(),
                                     null, null, null
                             ))
                             .doOnSuccess(v -> log.info("Password changed successfully. userCode={}", user.getUserCode()));
@@ -953,7 +953,7 @@ public class AuthService {
                             .then(eventPublisher.publish(
                                     AuthEventType.PASSWORD_RESET,
                                     user.getUserCode(),
-                                    maskEmail(user.getEmail()),
+                                    user.getEmail(),
                                     null, null, null
                             ))
                             .doOnSuccess(v -> log.info("Password reset successfully. userCode={}", user.getUserCode()));
