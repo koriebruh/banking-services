@@ -125,7 +125,7 @@ func JWTProtected(log *logrus.Logger) fiber.Handler {
 			}).Error("Failed to parse userId from sub claim")
 
 			return c.Status(fiber.StatusUnauthorized).JSON(
-				response.Error("Invalid token claims", correlationID),
+				response.Error("Invalid user ID in token claims", correlationID),
 			)
 		}
 
