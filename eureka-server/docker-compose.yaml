@@ -1,0 +1,44 @@
+services:
+  # ---------------------
+  # EUREKA 1 SERVER
+  # ---------------------
+  eureka-server1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eureka-server1
+    restart: unless-stopped
+    ports:
+      - "8761:8761" # HTTP
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=eureka-1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+  # ---------------------
+  # EUREKA 2 SERVER
+  # ---------------------
+  eureka-server2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eureka-server2
+    restart: unless-stopped
+    ports:
+      - "8762:8761"
+    env_file:
+      - .env.eureka2
+    environment:
+       - SPRING_PROFILES_ACTIVE=eureka-2
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

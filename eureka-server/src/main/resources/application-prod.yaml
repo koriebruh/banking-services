@@ -1,0 +1,47 @@
+server:
+  port: 8761
+
+---
+spring:
+  application:
+    name: eureka-server
+  security:
+    user:
+      name: "admin"
+      password: "admin123"
+
+# ---------------------------------------------------
+# EUREKA CONFIGURATION
+# ---------------------------------------------------
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+  client:
+    # Server tidak perlu mendaftarkan diri sendiri
+    register-with-eureka: false
+    # Server tidak perlu mengambil data dari server lain (kecuali cluster)
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${EUREKA_USERNAME}:${EUREKA_PASSWORD}@eureka-1:8761/eureka/
+  server:
+    # Mematikan self-preservation (Hanya untuk Development/Local)
+    # Di production perbankan, biarkan TRUE agar data tidak hilang saat network goyang
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 5000
+    renewal-percent-threshold: 0.85
+    wait-time-in-ms-when-sync-empty: 0
+
+# ---------------------------------------------------
+# MANAGEMENT & OBSERVABILITY
+# ---------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
