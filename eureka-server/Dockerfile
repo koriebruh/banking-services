@@ -16,18 +16,19 @@ RUN mvn clean package -DskipTests -B
 # =============================================================================
 FROM eclipse-temurin:25-jre-noble
 
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 WORKDIR /app
 
 COPY --from=builder /build/target/*.jar app.jar
-COPY src/main/resources/application-prod.yaml application.yml
+COPY src/main/resources/application.yaml .
 
 RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 8082
+EXPOSE 8761 8762
 
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \

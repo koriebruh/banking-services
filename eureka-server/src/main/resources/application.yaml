@@ -1,39 +1,16 @@
-server:
-  port: 8761
-
+# ---------------------------------------------------
+# COMMON CONFIG (berlaku untuk semua profile)
+# ---------------------------------------------------
 spring:
   application:
     name: eureka-server
   security:
     user:
-      name: "admin"
-      password: "admin123"
+      name: ${EUREKA_USERNAME:admin}
+      password: ${EUREKA_PASSWORD:admin123}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
-# ---------------------------------------------------
-# EUREKA CONFIGURATION
-# ---------------------------------------------------
-eureka:
-  instance:
-    hostname: localhost
-    prefer-ip-address: true
-  client:
-    # Server tidak perlu mendaftarkan diri sendiri
-    register-with-eureka: false
-    # Server tidak perlu mengambil data dari server lain (kecuali cluster)
-    fetch-registry: false
-    service-url:
-      defaultZone: http://eureka-svc:Eur3k@S3cur3!99@localhost:8761/eureka/
-  server:
-    # Mematikan self-preservation (Hanya untuk Development/Local)
-    # Di production perbankan, biarkan TRUE agar data tidak hilang saat network goyang
-    enable-self-preservation: false
-    eviction-interval-timer-in-ms: 5000
-    renewal-percent-threshold: 0.85
-    wait-time-in-ms-when-sync-empty: 0
-
-# ---------------------------------------------------
-# MANAGEMENT & OBSERVABILITY
-# ---------------------------------------------------
 management:
   endpoints:
     web:
@@ -44,3 +21,84 @@ management:
     health:
       show-details: when-authorized
       show-components: when-authorized
+
+eureka:
+  server:
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 5000
+    renewal-percent-threshold: 0.85
+    wait-time-in-ms-when-sync-empty: 0
+
+---
+# ---------------------------------------------------
+# PROFILE: eureka-1
+# ---------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: eureka-1
+
+server:
+  port: 8761
+
+eureka:
+  instance:
+    hostname: eureka-1
+    prefer-ip-address: false  # pakai hostname biar peer bisa saling resolve
+    instance-id: eureka-server:eureka-1:8761
+    metadata-map:
+      zone: primary
+  client:
+    register-with-eureka: true   # daftar ke peer eureka-2
+    fetch-registry: true         # fetch registry dari peer
+    service-url:
+      defaultZone: http://${EUREKA_USERNAME:admin}:${EUREKA_PASSWORD:admin123}@eureka-2:8762/eureka/
+
+---
+# ---------------------------------------------------
+# PROFILE: eureka-2
+# ---------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: eureka-2
+
+server:
+  port: 8762
+
+eureka:
+  instance:
+    hostname: eureka-2
+    prefer-ip-address: false
+    instance-id: eureka-server:eureka-2:8762
+    metadata-map:
+      zone: secondary
+  client:
+    register-with-eureka: true   # daftar ke peer eureka-1
+    fetch-registry: true
+    service-url:
+      defaultZone: http://${EUREKA_USERNAME:admin}:${EUREKA_PASSWORD:admin123}@eureka-1:8761/eureka/
+
+---
+# ---------------------------------------------------
+# PROFILE: dev (local, single node)
+# ---------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+server:
+  port: 8761
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+  client:
+    register-with-eureka: false  # standalone, ga perlu daftar ke siapa2
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  server:
+    enable-self-preservation: false  # dev boleh false
