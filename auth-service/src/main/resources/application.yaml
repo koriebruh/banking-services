@@ -163,3 +163,38 @@ management:
   tracing:
     sampling:
       probability: 1.0
+
+# ---------------------------------------------------
+# SERVICE DISCOVERY CONFIGURATION (EUREKA CLIENT)
+# ---------------------------------------------------
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://eureka-1:8761/eureka/,http://eureka-2:8762/eureka/}
+    # Aggressively fetch registry biar tau service lain cepet
+    fetch-registry: true
+    register-with-eureka: true
+    # Seberapa sering pull registry update dari server (default 30s, turunin buat faster discovery)
+    registry-fetch-interval-seconds: 10
+    # Retry awal koneksi ke Eureka server waktu startup
+    eureka-server-connect-timeout-seconds: 5
+    eureka-server-read-timeout-seconds: 8
+    # Jumlah retry kalau Eureka server down waktu startup
+    eureka-server-total-connections: 200
+    eureka-server-total-connections-per-host: 50
+    # Health check aktif — Eureka tau instance beneran sehat atau tidak
+    healthcheck:
+      enabled: true
+
+  instance:
+    # Pakai IP bukan hostname — penting di containerized/Docker environment
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.cloud.client.ip-address}:${server.port}
+    # Seberapa sering kirim heartbeat ke Eureka (default 30s)
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    # Metadata tambahan — berguna buat routing dan canary deployment
+    metadata-map:
+      version: ${APP_VERSION:1.0.0}
+      zone: ${AVAILABILITY_ZONE:default}
+      environment: ${SPRING_PROFILES_ACTIVE:development}

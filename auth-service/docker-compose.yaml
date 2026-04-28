@@ -31,6 +31,7 @@ services:
     networks:
       - auth-network
       - shared-network
+      - eureka-net
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 30s
@@ -111,3 +112,5 @@ networks:
     driver: bridge
   shared-network:
     external: true  # ← join network yang sudah ada
+  eureka-net:
+    external: true

@@ -45,6 +45,11 @@ public class CorrelationIdFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String path = exchange.getRequest().getPath().value();
+        if (path.startsWith("/actuator") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/api-docs") || path.startsWith("/webjars")) {
+            return chain.filter(exchange);
+        }
+
         String correlationId = exchange.getRequest().getHeaders().getFirst(CORRELATION_ID_HEADER);
 
         if (correlationId == null || correlationId.isBlank()) {
