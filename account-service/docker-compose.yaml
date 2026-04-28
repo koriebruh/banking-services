@@ -23,6 +23,7 @@ services:
     networks:
       - account-network
       - shared-network
+      - eureka-net
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
       interval: 30s
@@ -65,4 +66,6 @@ networks:
     name: account-network
     driver: bridge
   shared-network:
+    external: true
+  eureka-net:
     external: true

@@ -16,6 +16,7 @@ RUN mvn clean package -DskipTests -B
 # =============================================================================
 FROM eclipse-temurin:25-jre-noble
 
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 WORKDIR /app
